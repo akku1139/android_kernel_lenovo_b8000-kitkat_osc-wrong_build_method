@@ -19,6 +19,7 @@ obj-y   += nand/
 endif
 ifneq ($(MTK_PROJECT), mt6589fpga_ca7_ldvt)
 obj-y   += keypad/
+obj-y   += auxadc/
 obj-y   += video/
 endif
 ifneq ($(CONFIG_EARLY_LINUX_PORTING),y)
