@@ -46,7 +46,7 @@
 #include <cust_adc.h> // generate by DCT Tool
 
 #include "mt_auxadc.h"
-#include <mt_auxadc_sw.h>
+#include <mach/mt_auxadc_sw.h>
 
 
 /*****************************************************************************
