@@ -1,5 +1,6 @@
-// #ifndef _LINUX_TRACEPOINT_H
+#ifndef _LINUX_TRACEPOINT_H
 #include <linux/tracepoint.h>
+#endif
 // #else
 
 #ifndef _TRACEPOINT_DEFINE
@@ -62,5 +63,5 @@
 // #define TRACE_EVENT_FN(name, proto, args, struct,		\
 // 		assign, print, reg, unreg)			\
 // 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
-// #endif /*_TRACEPOINT_DEFINE*/
+#endif /*_TRACEPOINT_DEFINE*/
 // #endif /* _LINUX_TRACEPOINT_H*/
