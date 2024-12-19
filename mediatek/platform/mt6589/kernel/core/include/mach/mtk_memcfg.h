@@ -12,12 +12,14 @@
 extern void mtk_memcfg_write_memory_layout_buf(char *, ...); 
 extern unsigned long mtk_memcfg_get_force_inode_gfp_lowmem(void);
 extern unsigned long mtk_memcfg_set_force_inode_gfp_lowmem(unsigned long);
+extern void mtk_memcfg_late_warning(void);
 #ifdef CONFIG_SLUB_DEBUG
 extern unsigned long mtk_memcfg_get_bypass_slub_debug_flag(void);
 extern unsigned long mtk_memcfg_set_bypass_slub_debug_flag(unsigned long);
 #else
-#define mtk_memcfg_get_bypass_slub_debug_flag() (0)
-#define mtk_memcfg_set_bypass_slub_debug_flag(flag) (0)
+#define mtk_memcfg_get_bypass_slub_debug_flag()  do { } while (0)
+#define mtk_memcfg_set_bypass_slub_debug_flag(flag)  do { } while (0)
+
 #endif /* end CONFIG_SLUB_DEBUG */
 
 #else
@@ -27,11 +29,12 @@ extern unsigned long mtk_memcfg_set_bypass_slub_debug_flag(unsigned long);
         printk(fmt, ##arg); \
     } while (0)
 
-#define mtk_memcfg_get_force_inode_gfp_lowmem() (0)
-#define mtk_memcfg_set_force_inode_gfp_lowmem(flag) (0)
-#define mtk_memcfg_get_bypass_slub_debug_flag() (0)
-#define mtk_memcfg_set_bypass_slub_debug_flag(flag) (0)
+#define mtk_memcfg_get_force_inode_gfp_lowmem()  do { } while (0)
+#define mtk_memcfg_set_force_inode_gfp_lowmem(flag)  do { } while (0)
+#define mtk_memcfg_get_bypass_slub_debug_flag()  do { } while (0)
+#define mtk_memcfg_set_bypass_slub_debug_flag(flag)  do { } while (0)
 #define mtk_memcfg_write_memory_layout_buf(fmt, arg...) do { } while (0)
+#define mtk_memcfg_late_warning() do { } while (0)
 
 #endif /* end CONFIG_MTK_MEMCFG */
 
