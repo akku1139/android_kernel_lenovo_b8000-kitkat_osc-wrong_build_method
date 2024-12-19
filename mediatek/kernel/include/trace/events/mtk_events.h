@@ -6,28 +6,28 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mtk_events 
 
-TRACE_EVENT(new_trace_event,
+//TRACE_EVENT(new_trace_event,
 
-	TP_PROTO(unsigned int irq,
-		 int pid),
+//	TP_PROTO(unsigned int irq,
+//		 int pid),
 
-	TP_ARGS(irq, pid),
+//	TP_ARGS(irq, pid),
 
-	TP_STRUCT__entry(
-		__field(	unsigned int,	member1			)
-		__field(	int,	member2			)
-	),
+//	TP_STRUCT__entry(
+//		__field(	unsigned int,	member1			)
+//		__field(	int,	member2			)
+//	),
 
-	TP_fast_assign(
-		__entry->member1	= irq;
-		__entry->member2	= pid;
-	),
+//	TP_fast_assign(
+//		__entry->member1	= irq;
+//		__entry->member2	= pid;
+//	),
 
-	TP_printk("output string for new trace event %d,%d",
-		__entry->member1,
-		__entry->member2
-	)
-);
+//	TP_printk("output string for new trace event %d,%d",
+//		__entry->member1,
+//		__entry->member2
+//	)
+//);
 
 #endif /* _TRACE_SCHED_H */
 #ifndef TRACE_EVENT
