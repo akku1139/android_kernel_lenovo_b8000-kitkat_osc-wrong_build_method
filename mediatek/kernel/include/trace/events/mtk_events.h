@@ -1,7 +1,8 @@
 #if !defined(_TRACE_INT_SCHED_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_INT_SCHED_H
 
-#include <linux/tracepoint_define.h>
+#include <linux/tracepoint.h>
+//#include <linux/tracepoint_define.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mtk_events 
@@ -125,7 +126,7 @@ TRACE_EVENT(unnamed_irq,
 	    TP_printk("irq=%d", __entry->irq)
 );
 
-#endif /* _TRACE_SCHED_H */
+#endif /* _TRACE_INT_SCHED_H */
 #ifndef TRACE_EVENT
 #undef _TRACEPOINT_DEFINE
 #endif
