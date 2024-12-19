@@ -25,7 +25,7 @@
 	{								\
 		if (unlikely(__tracepoint_##name.state))		\
 			__DO_TRACE(&__tracepoint_##name,		\
-				TP_PROTO(proto), TP_ARGS(args));	\
+				TP_PROTO(proto), TP_ARGS(args),	true,,);\				\
 	}								\
 	static inline int register_trace_##name(void (*probe)(proto))	\
 	{								\
