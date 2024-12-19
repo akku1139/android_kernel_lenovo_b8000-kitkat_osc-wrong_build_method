@@ -23,7 +23,7 @@
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
-		if (unlikely(__tracepoint_##name.state))		\
+		if (unlikely(jump_label_enabled(&__tracepoint_##name.key))\
 			__DO_TRACE(&__tracepoint_##name,		\
 				TP_PROTO(proto), TP_ARGS(args),	true,,);\
 	}								\
