@@ -35,7 +35,7 @@
 #include <mach/mt_typedefs.h>
 #include <mach/mt_reg_base.h>
 #include <mach/irqs.h>
-#include <accdet_custom_def.h>
+//#include <accdet_custom_def.h>
 #include <accdet_custom.h>
 #include <mach/reg_accdet.h>
 
