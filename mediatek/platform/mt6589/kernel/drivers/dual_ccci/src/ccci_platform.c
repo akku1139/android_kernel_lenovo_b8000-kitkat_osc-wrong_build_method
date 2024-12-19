@@ -18,6 +18,12 @@
 #include <ccci_cfg.h>
 #include <ccci_rpc.h>
 #include <ccci_common.h>
+#include <ccci_platform.h>
+
+#include <sec_ccci_export.h>
+#include <sec_error_export.h>
+#include <sec_boot_export.h>
+
 #include <linux/fs.h>
 #include <mach/mtk_rtc.h>
 #include <mach/bus_fabric.h>
