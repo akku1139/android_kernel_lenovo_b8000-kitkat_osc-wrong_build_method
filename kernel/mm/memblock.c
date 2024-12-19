@@ -559,7 +559,9 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 
 	if (memblock_is_region_reserved(base, size)) {
 		/* trap memory reserve conflict */
+#ifdef CONFIG_MTK_MEMCFG
 		mtk_memcfg_late_warning();
+#endif
 		MTK_MEMCFG_LOG_AND_PRINTK("[rsv conflict]%pS: "
 			"0x%08llx - 0x%08llx (0x%08llx)\n",
 			__builtin_return_address(0),
