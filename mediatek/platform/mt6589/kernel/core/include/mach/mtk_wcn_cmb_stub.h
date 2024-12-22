@@ -102,6 +102,9 @@ extern int mtk_wcn_cmb_stub_aif_ctrl (CMB_STUB_AIF_X state, CMB_STUB_AIF_CTRL ct
 extern int mtk_wcn_cmb_stub_func_ctrl(unsigned int type, unsigned int on);
 #endif
 
+extern int mtk_wcn_wmt_chipid_query(void);
+extern void mtk_wcn_wmt_set_chipid(int chipid);
+
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************
