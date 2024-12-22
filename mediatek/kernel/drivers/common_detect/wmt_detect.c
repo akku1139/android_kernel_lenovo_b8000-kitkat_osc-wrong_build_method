@@ -11,7 +11,7 @@
 #include "wmt_detect.h"
 
 #if MTK_WCN_REMOVE_KO
-#include "conn_drv_init.h"
+#include "drv_init/inc/conn_drv_init.h"
 #endif
 
 
