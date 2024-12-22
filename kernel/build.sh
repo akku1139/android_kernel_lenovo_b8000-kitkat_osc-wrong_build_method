@@ -101,9 +101,9 @@ if [ "${rebuild}" == "y" ]; then make_clean; fi
 echo "**** Configuring / $defcfg / ****"
 # select correct configuration file
 if [ "${KBUILD_OUTPUT_SUPPORT}" == "yes" ]; then
-  yes "" | make mediatek-configs O=$outdir
+  make mediatek-configs O=$outdir
 else
-  yes "" | make mediatek-configs
+  make mediatek-configs
 fi
 
 # Config DRAM size according to central Project Configuration file setting
@@ -156,8 +156,8 @@ fi
 
 # update configuration
 echo "**** Updating settings ****"
-#nice make ${makeflags} ${makedefs} silentoldconfig
-nice make ${makeflags} ${makedefs} oldconfig
+nice make ${makeflags} ${makedefs} silentoldconfig
+#nice make ${makeflags} ${makedefs} oldconfig
 
 if [ ! -z $KMOD_PATH ]; then
   echo "Build kernel module PROJECT=$MTK_PROJECT PATH=$KMOD_PATH";
@@ -187,7 +187,7 @@ fi
 
 echo "**** Generate download images ****"
 
-outdir=$curdir/out
+#outdir=$curdir/out
 
 if [ ! -x ${mkimg} ]; then chmod a+x ${mkimg}; fi
 
