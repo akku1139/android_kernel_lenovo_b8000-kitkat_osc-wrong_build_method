@@ -1,6 +1,4 @@
 #!/bin/bash
-set -x
-
 # Default settings
 verfile="android.ver"
 curcfg=".config"
