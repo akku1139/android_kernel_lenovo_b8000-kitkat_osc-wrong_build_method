@@ -9,6 +9,11 @@ export CROSS_COMPILE="ccache $IT/toolchain/arm-cortex_a7-linux-gnueabihf-linaro_
 export KCFLAGS="-pipe -mtune=cortex-a7 -march=armv7-a -mfpu=neon-vfpv4"
 export MTK_ROOT_CUSTOM="$IT/mediatek/custom/"
 
+echo "**** Cleaning kernel tree ****"
+cd kernel
+make mrproper
+cd ..
+
 #cd kernel
 #bash -e build.sh lenovo89_tb_x10_jb2
 #cd ..
