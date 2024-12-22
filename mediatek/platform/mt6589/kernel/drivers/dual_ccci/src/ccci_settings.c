@@ -389,35 +389,35 @@ int ccci_alloc_smem(int md_id)
 	// TTY: tty_muxd(uart0), tty_meta(uart1), ccmni1(uart2), ccmni2(uart3), ccmni3(uart4), tty_ipc(uart5)
 	j = 0;
 	for (i = 0; i < CCCI1_TTY_PORT_NUM-1; i++, j++) {
-		md_smem_tab[md_id].ccci_tty_smem_base_virt[i] = base_virt;
-		md_smem_tab[md_id].ccci_tty_smem_base_phy[i] = base_phy;
-		md_smem_tab[md_id].ccci_tty_smem_size[i] = tty_smem_size[md_id];
+		md_smem_tab[md_id].ccci_uart_smem_base_virt[i] = base_virt;
+		md_smem_tab[md_id].ccci_uart_smem_base_phy[i] = base_phy;
+		md_smem_tab[md_id].ccci_uart_smem_size[i] = tty_smem_size[md_id];
 		base_virt += tty_smem_size[md_id];
 		base_phy += tty_smem_size[md_id];
 	}
 	for (i = 0; i < CCCI1_CCMNI_V1_PORT_NUM; i++, j++) {
 		if(net_v1_smem_size[md_id] == 0) {
-			md_smem_tab[md_id].ccci_tty_smem_base_virt[j] = 0;
-			md_smem_tab[md_id].ccci_tty_smem_base_phy[j] = 0;
-			md_smem_tab[md_id].ccci_tty_smem_size[j] = 0;
+			md_smem_tab[md_id].ccci_uart_smem_base_virt[j] = 0;
+			md_smem_tab[md_id].ccci_uart_smem_base_phy[j] = 0;
+			md_smem_tab[md_id].ccci_uart_smem_size[j] = 0;
 		} else {
-			md_smem_tab[md_id].ccci_tty_smem_base_virt[j] = base_virt;
-			md_smem_tab[md_id].ccci_tty_smem_base_phy[j] = base_phy;
-			md_smem_tab[md_id].ccci_tty_smem_size[j] = net_v1_smem_size[md_id];
+			md_smem_tab[md_id].ccci_uart_smem_base_virt[j] = base_virt;
+			md_smem_tab[md_id].ccci_uart_smem_base_phy[j] = base_phy;
+			md_smem_tab[md_id].ccci_uart_smem_size[j] = net_v1_smem_size[md_id];
 			base_virt += net_v1_smem_size[md_id];
 			base_phy += net_v1_smem_size[md_id];
 		}
 	}
-	md_smem_tab[md_id].ccci_tty_smem_base_virt[j] = base_virt; // TTY for IPC
-	md_smem_tab[md_id].ccci_tty_smem_base_phy[j] = base_phy;
-	md_smem_tab[md_id].ccci_tty_smem_size[j] = tty_smem_size[md_id];
+	md_smem_tab[md_id].ccci_uart_smem_base_virt[j] = base_virt; // TTY for IPC
+	md_smem_tab[md_id].ccci_uart_smem_base_phy[j] = base_phy;
+	md_smem_tab[md_id].ccci_uart_smem_size[j] = tty_smem_size[md_id];
 	base_virt += tty_smem_size[md_id];
 	base_phy += tty_smem_size[md_id];
 	j++;
 	for (; j < UART_MAX_PORT_NUM; j++) {
-		md_smem_tab[md_id].ccci_tty_smem_base_virt[j] = 0;
-		md_smem_tab[md_id].ccci_tty_smem_base_phy[j] = 0;
-		md_smem_tab[md_id].ccci_tty_smem_size[j] = 0;
+		md_smem_tab[md_id].ccci_uart_smem_base_virt[j] = 0;
+		md_smem_tab[md_id].ccci_uart_smem_base_phy[j] = 0;
+		md_smem_tab[md_id].ccci_uart_smem_size[j] = 0;
 	}
 
 	// PMIC
