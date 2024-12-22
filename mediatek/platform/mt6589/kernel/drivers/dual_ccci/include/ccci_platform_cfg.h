@@ -59,7 +59,7 @@
 #else
 #define CCCI1_TTY_PORT_NUM    			(3)
 #endif
-//#define CCCI1_CCMNI_V1_PORT_NUM			(3) 		 // For V1 CCMNI
+#define CCCI1_CCMNI_V1_PORT_NUM			(3) 		 // For V1 CCMNI
 
 
 // MD SYS2 configuration
@@ -72,7 +72,7 @@
 #define CCCI2_TTY_BUF_SIZE			    (16 * 1024)
 #define CCCI2_CCMNI_BUF_SIZE			(16*1024)
 #define CCCI2_TTY_PORT_NUM  			(3)
-//#define CCCI2_CCMNI_V1_PORT_NUM			(3) 		 // For V1 CCMNI
+#define CCCI2_CCMNI_V1_PORT_NUM			(3) 		 // For V1 CCMNI
 
 
 
