@@ -117,6 +117,7 @@ extern unsigned int *get_modem_size_list(void);
 unsigned int get_md_mem_start_addr(int md_id);
 unsigned int get_md_share_mem_start_addr(int md_id);
 unsigned int get_smem_base_addr(int md_id);
+unsigned int get_modem_is_enabled(int md_id);
 
 
 
@@ -137,4 +138,5 @@ int register_ccci_sys_call_back(int md_id, unsigned int id, ccci_sys_cb_func_t f
 void exec_ccci_sys_call_back(int md_id, int cb_id, int data);
 
 
+void ccci_helper_exit(void);
 #endif
