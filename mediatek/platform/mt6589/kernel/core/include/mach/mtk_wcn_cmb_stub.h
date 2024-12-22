@@ -54,23 +54,6 @@ typedef enum {
     CMB_STUB_AIF_CTRL_MAX = 2,
 } CMB_STUB_AIF_CTRL;
 
-typedef enum {
-    COMBO_FUNC_TYPE_BT = 0,
-    COMBO_FUNC_TYPE_FM = 1,
-    COMBO_FUNC_TYPE_GPS = 2,
-    COMBO_FUNC_TYPE_WIFI = 3,
-    COMBO_FUNC_TYPE_WMT = 4,
-    COMBO_FUNC_TYPE_STP = 5,
-    COMBO_FUNC_TYPE_NUM = 6
-} COMBO_FUNC_TYPE;
-
-typedef enum {
-    COMBO_IF_UART = 0,
-    COMBO_IF_MSDC = 1,
-    COMBO_IF_BTIF = 2,
-    COMBO_IF_MAX,
-} COMBO_IF;
-
 typedef void (*wmt_bgf_eirq_cb)(void);
 typedef int (*wmt_aif_ctrl_cb)(CMB_STUB_AIF_X, CMB_STUB_AIF_CTRL);
 typedef void (*wmt_func_ctrl_cb)(unsigned int, unsigned int);
