@@ -414,7 +414,7 @@ int ccci_alloc_smem(int md_id)
 	base_virt += tty_smem_size[md_id];
 	base_phy += tty_smem_size[md_id];
 	j++;
-	for (; j < UART_MAX_PORT_NUM; j++) {
+	for (; j < CCCI_UART_PORT_NUM; j++) {
 		md_smem_tab[md_id].ccci_uart_smem_base_virt[j] = 0;
 		md_smem_tab[md_id].ccci_uart_smem_base_phy[j] = 0;
 		md_smem_tab[md_id].ccci_uart_smem_size[j] = 0;
@@ -468,7 +468,7 @@ int ccci_alloc_smem(int md_id)
 	}
 
 	// CCMNI_V2 --Ctrl memory
-	for (i = 0; i < CCMNI_CHANNEL_CNT; i++) {
+	for (i = 0; i < CCMNI_V2_PORT_NUM; i++) {
 		if (net_v2_smem_size[md_id] == 0) {
 			md_smem_tab[md_id].ccci_ccmni_ctl_smem_base_virt[i] = 0;
 			md_smem_tab[md_id].ccci_ccmni_ctl_smem_base_phy[i] = 0;
@@ -483,7 +483,7 @@ int ccci_alloc_smem(int md_id)
 		base_phy += net_v2_smem_size[md_id];
 	}
 
-	for (; i < CCMNI_MAX_CHANNELS; i++){
+	for (; i < NET_PORT_NUM; i++){
 		md_smem_tab[md_id].ccci_ccmni_ctl_smem_base_virt[i] = 0;
 		md_smem_tab[md_id].ccci_ccmni_ctl_smem_base_phy[i] = 0;
 		md_smem_tab[md_id].ccci_ccmni_ctl_smem_size[i] = 0;
