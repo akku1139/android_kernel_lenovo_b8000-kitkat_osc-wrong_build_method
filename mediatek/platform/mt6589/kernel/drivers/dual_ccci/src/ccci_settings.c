@@ -1,4 +1,5 @@
 #include <ccci_common.h>
+#include <ccci_platform.h>
 #include <ccci_rpc.h>
 #include <ccci_fs.h>
 #include <ccci_tty.h>
