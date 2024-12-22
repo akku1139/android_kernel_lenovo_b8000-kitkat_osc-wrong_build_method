@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <ccci_common.h>
+#include <ccci_platform.h>
 
 
 #define  CCIF_DEBUG    //ccif issue debug
