@@ -21,7 +21,7 @@ usage() {
 }
 
 make() {
-    /usr/bin/make HOSTCC="ccache gcc" HOSTCXX="ccache g++" $@
+    /usr/bin/make HOSTCC="ccache gcc" HOSTCXX="ccache g++" "$@"
 }
 
 make_clean() {
@@ -186,8 +186,6 @@ kernel_zimg="${curdir}/arch/arm/boot/zImage"
 fi
 
 echo "**** Generate download images ****"
-
-#outdir=$curdir/out
 
 if [ ! -x ${mkimg} ]; then chmod a+x ${mkimg}; fi
 
