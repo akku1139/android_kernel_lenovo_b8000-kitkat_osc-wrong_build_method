@@ -64,6 +64,7 @@ typedef enum {
 typedef enum {
     COMBO_IF_UART = 0,
     COMBO_IF_MSDC = 1,
+    COMBO_IF_BTIF = 2,
     COMBO_IF_MAX,
 } COMBO_IF;
 
