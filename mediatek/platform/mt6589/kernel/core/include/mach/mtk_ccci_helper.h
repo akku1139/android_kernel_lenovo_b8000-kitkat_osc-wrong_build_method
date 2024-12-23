@@ -77,6 +77,13 @@ typedef enum {
 }SYS_CB_ID;
 
 
+typedef enum {
+	md_type_invalid = 0,
+	modem_2g = 1,
+	modem_3g,
+	modem_wg,
+	modem_tg,
+}modem_type_t;
 
 //-------------structure define------------------------//
 typedef int (*ccci_kern_cb_func_t)(int, char *, unsigned int);
