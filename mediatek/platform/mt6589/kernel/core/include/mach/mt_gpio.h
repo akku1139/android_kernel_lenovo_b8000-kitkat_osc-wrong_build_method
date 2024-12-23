@@ -1,3 +1,5 @@
+#ifndef __MT_GPIO_H__
+#define __MT_GPIO_H__
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 // FIX-ME: marked for early porting
@@ -313,3 +315,4 @@ void gpio_dump_regs(void);
 /*For MD GPIO customization only, can be called by CCCI driver*/
 int mt_get_md_gpio(char * gpio_name, int len);
 
+#endif /* __MT_GPIO_H__ */
