@@ -564,6 +564,7 @@ static inline int musb_platform_init(struct musb *musb)
 */
 extern int __init musb_platform_init(struct musb *musb);
 
+/*
 static inline int musb_platform_exit(struct musb *musb)
 {
 	if (!musb->ops->exit)
@@ -571,6 +572,8 @@ static inline int musb_platform_exit(struct musb *musb)
 
 	return musb->ops->exit(musb);
 }
+*/
+extern int musb_platform_exit(struct musb *musb);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 static inline const char *otg_state_string(enum usb_otg_state state)
