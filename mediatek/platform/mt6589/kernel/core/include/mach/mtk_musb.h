@@ -1,5 +1,5 @@
-#ifndef __MUSB_MTK_MUSB_H__
-#define __MUSB_MTK_MUSB_H__
+#ifndef __MACH_MUSB_MTK_MUSB_H__
+#define __MACH_MUSB_MTK_MUSB_H__
 #include <mach/mt_reg_base.h>
 
 #include <linux/wakelock.h>
