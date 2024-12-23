@@ -12,6 +12,7 @@
 /******************************************************************************
 * Enumeration for GPIO pin
 ******************************************************************************/
+#define MT_GPIO_BASE_START 0
 typedef enum GPIO_PIN
 {    
     GPIO_UNSUPPORTED = -1,    
@@ -55,7 +56,9 @@ typedef enum GPIO_PIN
 }GPIO_PIN;    
 
 #define MAX_GPIO_PIN    (GPIO_MAX)
+#define MT_GPIO_BASE_MAX GPIOEXT0
 #define GPIO_EXTEND_START GPIOEXT0
+#define GPIO_EXT_START GPIOEXT0
 typedef enum GPIO_PIN_EXT
 {    
     GPIO232 = GPIO_EXTEND_START,    
@@ -65,7 +68,8 @@ typedef enum GPIO_PIN_EXT
     GPIO256, GPIO257, GPIO258, GPIO259, GPIO260, GPIO261, GPIO262, GPIO263,	
     GPIO264, GPIO265, GPIO266, GPIO267, GPIO268, GPIO269, GPIO270, GPIO271,	
     GPIO272, GPIO273, GPIO274, GPIO275, GPIO276, GPIO277, GPIO278, GPIO279,	
-    GPIO280
+    GPIO280,
+    MT_GPIO_EXT_MAX
 }GPIO_PIN_EXT;    
 
 /******************************************************************************
