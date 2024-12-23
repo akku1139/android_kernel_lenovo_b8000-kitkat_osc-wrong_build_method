@@ -272,7 +272,8 @@ typedef struct {        /*FIXME: check GPIO spec*/
 * GPIO Driver interface 
 ******************************************************************************/
 /*direction*/
-s32 mt_set_gpio_dir(u32 pin, u32 dir);
+//s32 mt_set_gpio_dir(u32 pin, u32 dir);
+int mt_set_gpio_dir(unsigned long pin, unsigned long dir);
 s32 mt_get_gpio_dir(u32 pin);
 
 /*pull enable*/
