@@ -354,29 +354,6 @@ int get_md2_ap_phy_addr_fixed(void);//Generally, AP and MD has same share memory
 									     //however, if hardware remapp does not work, then need software remap,
 									     //This variable is used to fix md phy addr does not equeal with AP.
 									     //If hardware remap works, then the variable is 0.
-
-/*-------------other configure-------------------------*/
-
-/*-------------error code define-----------------------*/
-
-/*-------------enum define---------------------------*/
-/*System channel, AP -->(/ <-->) MD message start from 0x100*/
-enum {
-	MD_DORMANT_NOTIFY = 0x100,
-	MD_SLP_REQUEST = 0x101,
-	MD_TX_POWER = 0x102,
-	MD_RF_TEMPERATURE = 0x103,
-	MD_RF_TEMPERATURE_3G = 0x104,
-	MD_GET_BATTERY_INFO = 0x105,
-	MD_SIM_TYPE = 0x107,	/*for regional phone boot animation */
-	MD_SW_2G_TX_POWER = 0x10E,
-	MD_SW_3G_TX_POWER = 0x10F,
-};
-
-/*-------------structure define------------------------*/
-
-/*-----------------export function declaration----------------------------*/
-
 //==================================================================================
 // CCCI API cannot be directly called by platform, 
 // since ccci.ko is loaded after ccci_platform.ko, 
