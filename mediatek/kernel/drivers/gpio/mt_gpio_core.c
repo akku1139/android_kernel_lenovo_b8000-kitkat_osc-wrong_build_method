@@ -175,7 +175,7 @@ static struct mt_gpio_obj_t *mt_gpio = &mt_gpio_obj;
 	};\
 	retval;})
 
-int mt_set_gpio_dir(unsigned long pin, unsigned long dir)
+s32 mt_set_gpio_dir(u32 pin, u32 dir)
 {
 	//int ret=0;
     if (dir >= GPIO_DIR_MAX){
@@ -187,13 +187,13 @@ int mt_set_gpio_dir(unsigned long pin, unsigned long dir)
 }
 EXPORT_SYMBOL(mt_set_gpio_dir);
 /*---------------------------------------------------------------------------*/
-int mt_get_gpio_dir(unsigned long pin)
+s32 mt_get_gpio_dir(u32 pin)
 {    
 	return MT_GPIO_OPS_GET(pin,get_dir);
 }
 EXPORT_SYMBOL(mt_get_gpio_dir);
 /*---------------------------------------------------------------------------*/
-int mt_set_gpio_pull_enable(unsigned long pin, unsigned long enable)
+s32 mt_set_gpio_pull_enable(u32 pin, u32 enable)
 {
     if (enable >= GPIO_PULL_EN_MAX){
 		GPIOERR("Parameter enable error: %d\n",(int)enable);
@@ -204,7 +204,7 @@ int mt_set_gpio_pull_enable(unsigned long pin, unsigned long enable)
 }
 EXPORT_SYMBOL(mt_set_gpio_pull_enable);
 /*---------------------------------------------------------------------------*/
-int mt_get_gpio_pull_enable(unsigned long pin)
+s32 mt_get_gpio_pull_enable(u32 pin)
 {
 	return MT_GPIO_OPS_GET(pin,get_pull_enable);
 }
@@ -226,7 +226,7 @@ int mt_get_gpio_ies(unsigned long pin)
 }
 EXPORT_SYMBOL(mt_get_gpio_ies);
 /*---------------------------------------------------------------------------*/
-int mt_set_gpio_pull_select(unsigned long pin, unsigned long select)
+s32 mt_set_gpio_pull_select(u32 pin, u32 select)
 {
     if (select >= GPIO_PULL_MAX){
 		GPIOERR("Parameter select error: %d\n",(int)select);
@@ -236,13 +236,13 @@ int mt_set_gpio_pull_select(unsigned long pin, unsigned long select)
 }
 EXPORT_SYMBOL(mt_get_gpio_pull_select);
 /*---------------------------------------------------------------------------*/
-int mt_get_gpio_pull_select(unsigned long pin)
+s32 mt_get_gpio_pull_select(u32 pin)
 {
 	return MT_GPIO_OPS_GET(pin,get_pull_select);
 }
 EXPORT_SYMBOL(mt_set_gpio_pull_select);
 /*---------------------------------------------------------------------------*/
-int mt_set_gpio_inversion(unsigned long pin, unsigned long enable)
+s32 mt_set_gpio_inversion(u32 pin, u32 enable)
 {
     if (enable >= GPIO_DATA_INV_MAX){
 		GPIOERR("Parameter enable error: %d\n",(int)enable);
@@ -252,13 +252,13 @@ int mt_set_gpio_inversion(unsigned long pin, unsigned long enable)
 }
 EXPORT_SYMBOL(mt_set_gpio_inversion);
 /*---------------------------------------------------------------------------*/
-int mt_get_gpio_inversion(unsigned long pin)
+s32 mt_get_gpio_inversion(u32 pin)
 {
 	return MT_GPIO_OPS_GET(pin,get_inversion);
 }
 EXPORT_SYMBOL(mt_get_gpio_inversion);
 /*---------------------------------------------------------------------------*/
-int mt_set_gpio_out(unsigned long pin, unsigned long output)
+s32 mt_set_gpio_out(u32 pin, u32 output)
 {
     if (output >= GPIO_OUT_MAX){
 		GPIOERR("Parameter output error: %d\n",(int)output);
@@ -268,19 +268,19 @@ int mt_set_gpio_out(unsigned long pin, unsigned long output)
 }
 EXPORT_SYMBOL(mt_set_gpio_out);
 /*---------------------------------------------------------------------------*/
-int mt_get_gpio_out(unsigned long pin)
+s32 mt_get_gpio_out(u32 pin)
 {
 	return MT_GPIO_OPS_GET(pin,get_out);
 }
 EXPORT_SYMBOL(mt_get_gpio_out);
 /*---------------------------------------------------------------------------*/
-int mt_get_gpio_in(unsigned long pin)
+s32 mt_get_gpio_in(u32 pin)
 {
 	return MT_GPIO_OPS_GET(pin,get_in);
 }
 EXPORT_SYMBOL(mt_get_gpio_in);
 /*---------------------------------------------------------------------------*/
-int mt_set_gpio_mode(unsigned long pin, unsigned long mode)
+s32 mt_set_gpio_mode(u32 pin, u32 mode)
 {
     if (mode >= GPIO_MODE_MAX){
 		GPIOERR("Parameter mode error: %d\n",(int)mode);
@@ -290,7 +290,7 @@ int mt_set_gpio_mode(unsigned long pin, unsigned long mode)
 }
 EXPORT_SYMBOL(mt_set_gpio_mode);
 /*---------------------------------------------------------------------------*/
-int mt_get_gpio_mode(unsigned long pin)
+s32 mt_get_gpio_mode(u32 pin)
 {
 	return MT_GPIO_OPS_GET(pin,get_mode);
 }
@@ -593,4 +593,3 @@ MODULE_AUTHOR("Ranran <ranran.lu@mediatek.com>");
 MODULE_DESCRIPTION("MT General Purpose Driver (GPIO) $Revision$");
 MODULE_LICENSE("GPL");
 /*---------------------------------------------------------------------------*/
-
