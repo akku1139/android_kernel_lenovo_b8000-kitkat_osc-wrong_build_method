@@ -276,20 +276,23 @@ void get_md_post_fix(int md_id, char buf[], char buf_ex[])
 
 	// YY_K
 	YY_K[0] = '\0';
+
+	/*
 	switch(md_id)
 	{
 	case MD_SYS1:
-		feature_val = md_support[MD_SYS1];
+		//feature_val = md_support[MD_SYS1];
 		break;
 
 	case MD_SYS2:
-		feature_val = md_support[MD_SYS2];
+		//feature_val = md_support[MD_SYS2];
 		break;
 
 	default:
 		break;
 	}
-	
+	*/
+
 	switch(feature_val)
 	{
 		case modem_2g:
