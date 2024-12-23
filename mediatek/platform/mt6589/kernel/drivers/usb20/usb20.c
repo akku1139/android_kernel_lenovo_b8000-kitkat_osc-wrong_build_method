@@ -774,9 +774,7 @@ int __init musb_platform_init(struct musb *musb)
 	return 0;
 }
 
-/*
 int musb_platform_exit(struct musb *musb)
 {
 	return 0;
 }
-*/
