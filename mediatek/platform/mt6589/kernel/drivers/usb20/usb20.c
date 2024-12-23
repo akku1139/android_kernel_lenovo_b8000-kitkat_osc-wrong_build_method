@@ -762,7 +762,7 @@ int __init musb_platform_init(struct musb *musb)
 	int err;
 #ifdef CONFIG_USB_MTK_HDRC_HCD
 	if (is_host_enabled(musb)) {
-		musb->board_set_vbus = mtk_set_vbus;
+		//musb->board_set_vbus = mtk_set_vbus;
 		#ifndef CONFIG_MT6589_FPGA
 		#ifndef MTK_BQ24196_SUPPORT
 		mt_set_gpio_mode(GPIO_OTG_DRVVBUS_PIN,GPIO_OTG_DRVVBUS_PIN_M_GPIO);//should set GPIO2 as gpio mode.
