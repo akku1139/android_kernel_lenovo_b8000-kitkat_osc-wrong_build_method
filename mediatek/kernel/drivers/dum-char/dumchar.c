@@ -21,7 +21,7 @@
 #include <mach/env.h>
 
 #include "partition_define.h"
-//#include "partition_define_private.h"
+#include "partition_define_private.h"
 #include "dumchar.h"		/* local definitions */
 #include "pmt.h"
 #include <linux/mmc/host.h>
