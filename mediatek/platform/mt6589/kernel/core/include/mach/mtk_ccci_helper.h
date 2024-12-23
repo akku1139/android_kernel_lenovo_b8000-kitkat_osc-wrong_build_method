@@ -121,7 +121,8 @@ unsigned int get_md_mem_start_addr(int md_id);
 unsigned int get_md_share_mem_start_addr(int md_id);
 unsigned int get_smem_base_addr(int md_id);
 unsigned int get_modem_is_enabled(int md_id);
-
+unsigned int get_modem_support(int md_id);
+unsigned int set_modem_support(int md_id, int md_type);
 
 
 int register_filter_func(char cmd[], ccci_filter_cb_func_t store, ccci_filter_cb_func_t show);

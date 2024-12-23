@@ -363,6 +363,41 @@ static int get_dfo_setting(char item[], unsigned int *val)
 	return -CCCI_ERR_INVALID_PARAM;
 }
 
+unsigned int get_modem_support(int md_id)
+{
+	switch(md_id)
+	{
+		case MD_SYS1:
+			return md_support[MD_SYS1];
+
+		case MD_SYS2:
+			return md_support[MD_SYS2];
+		default:
+			return 0;
+	}
+}
+EXPORT_SYMBOL(get_modem_support);
+
+
+unsigned int set_modem_support(int md_id, int md_type)
+{
+	switch(md_id)
+	{
+	case MD_SYS1:
+		if (md_type >= modem_2g && md_type <= modem_tg){
+			md_support[MD_SYS1] = md_type;
+		}
+		else
+			printk("[ccci/ctl] error: set_modem_support fail(md:%d, md_type:%d)!\n", md_id+1, md_type);
+		return 0;
+
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(set_modem_support);
+
+
 static void cal_md_mem_usage(void)
 {
 	unsigned int tmp;
