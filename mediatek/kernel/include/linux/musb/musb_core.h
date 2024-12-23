@@ -512,17 +512,23 @@ static inline void musb_platform_set_vbus(struct musb *musb, int is_on)
 		musb->ops->set_vbus(musb, is_on);
 }
 
+/*
 static inline void musb_platform_enable(struct musb *musb)
 {
 	if (musb->ops->enable)
 		musb->ops->enable(musb);
 }
+*/
+extern void musb_platform_enable(struct musb *musb);
 
+/*
 static inline void musb_platform_disable(struct musb *musb)
 {
 	if (musb->ops->disable)
 		musb->ops->disable(musb);
 }
+*/
+extern void musb_platform_disable(struct musb *musb);
 
 static inline int musb_platform_set_mode(struct musb *musb, u8 mode)
 {
@@ -547,6 +553,7 @@ static inline int musb_platform_get_vbus_status(struct musb *musb)
 	return musb->ops->vbus_status(musb);
 }
 
+/*
 static inline int musb_platform_init(struct musb *musb)
 {
 	if (!musb->ops->init)
@@ -554,6 +561,8 @@ static inline int musb_platform_init(struct musb *musb)
 
 	return musb->ops->init(musb);
 }
+*/
+extern int __init musb_platform_init(struct musb *musb);
 
 static inline int musb_platform_exit(struct musb *musb)
 {
