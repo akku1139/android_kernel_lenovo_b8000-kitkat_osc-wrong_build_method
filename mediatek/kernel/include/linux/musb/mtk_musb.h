@@ -56,8 +56,8 @@ extern void mt_usb_init_drvvbus(void);
 extern void mt_usb_set_vbus(struct musb *musb, int is_on);
 extern int mt_usb_get_vbus_status(struct musb *musb);
 extern void mt_usb_iddig_int(struct musb *musb);
-extern void switch_int_to_device(struct musb *musb);
-extern void switch_int_to_host(struct musb *musb);
-extern void switch_int_to_host_and_mask(struct musb *musb);
+extern void switch_int_to_device(void);
+extern void switch_int_to_host(void);
+extern void switch_int_to_host_and_mask(void);
 extern void musb_session_restart(struct musb *musb);
 #endif
