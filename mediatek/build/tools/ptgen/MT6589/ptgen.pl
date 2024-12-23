@@ -703,7 +703,7 @@ extern struct MBR_EBR_struct MBR_EBR_px[MBR_COUNT];
 __TEMPLATE
 
 	print PARTITION_DEFINE_H_NAME $ExcelStruct;
-	print PARTITION_DEFINE_H_NAME "extern struct excel_info PartInfo[PART_NUM];\n";
+	print PARTITION_DEFINE_H_NAME "extern struct excel_info *PartInfo;\n";
 	print PARTITION_DEFINE_H_NAME "\n\n#endif\n" ; 
    	close PARTITION_DEFINE_H_NAME ;
 

@@ -40,6 +40,7 @@ static struct dumchar_dev *dumchar_devices; /* store all dum char info,  allocat
 static struct proc_dir_entry *dumchar_proc_entry=NULL;
 //struct excel_info *PartInfo;
 //EXPORT_SYMBOL(PartInfo);
+extern struct excel_info PartInfo[PART_NUM];
 #ifdef MTK_EMMC_SUPPORT
 
 extern int simple_sd_ioctl_rw(struct msdc_ioctl* msdc_ctl);
