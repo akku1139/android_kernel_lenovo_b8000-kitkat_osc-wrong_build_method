@@ -53,6 +53,9 @@ enum {
 	MD_RF_TEMPERATURE = 0x103,
 	MD_RF_TEMPERATURE_3G = 0x104,
 	MD_GET_BATTERY_INFO = 0x105,
+	MD_SIM_TYPE = 0x107,	/*for regional phone boot animation */
+	MD_SW_2G_TX_POWER = 0x10E,
+	MD_SW_3G_TX_POWER = 0x10F,
 };
 
 typedef enum {
