@@ -38,7 +38,7 @@ static struct class *dumchar_class;
 static struct device *dumchar_device[PART_NUM];
 static struct dumchar_dev *dumchar_devices; /* store all dum char info,  allocated in dumchar_init */
 static struct proc_dir_entry *dumchar_proc_entry=NULL;
-struct excel_info *PartInfo;
+//struct excel_info *PartInfo;
 EXPORT_SYMBOL(PartInfo);
 #ifdef MTK_EMMC_SUPPORT
 
