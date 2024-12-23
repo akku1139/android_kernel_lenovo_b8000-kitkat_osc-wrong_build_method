@@ -94,6 +94,9 @@ extern int mtk_wcn_cmb_stub_reg (P_CMB_STUB_CB p_stub_cb);
 extern int mtk_wcn_cmb_stub_unreg (void);
 
 extern int mtk_wcn_cmb_stub_aif_ctrl (CMB_STUB_AIF_X state, CMB_STUB_AIF_CTRL ctrl);
+static inline int mtk_wcn_cmb_stub_audio_ctrl(CMB_STUB_AIF_X state) {
+    return mtk_wcn_cmb_stub_aif_ctrl(state, 1);
+}
 
 // TODO: [FixMe][GeorgeKuo]: put prototypes into mt_combo.h for board.c temporarily for non-finished porting
 // TODO: old: rfkill->board.c->mt_combo->wmt_lib_plat
