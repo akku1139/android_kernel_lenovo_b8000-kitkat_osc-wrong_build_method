@@ -503,6 +503,33 @@ u8 musb_read_clear_dma_interrupt(struct musb *musb)
 }
 extern u32 sw_deboun_time ;
 
+/*-------------------------------------------------------------------------*/
+static irqreturn_t generic_interrupt(int irq, void *__hci)
+{
+	unsigned long	flags;
+	irqreturn_t	retval = IRQ_NONE;
+	struct musb	*musb = __hci;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	/* musb_read_clear_generic_interrupt */
+	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB) & musb_readb(musb->mregs, MUSB_INTRUSBE);
+	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX) & musb_readw(musb->mregs, MUSB_INTRTXE);
+	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX) & musb_readw(musb->mregs, MUSB_INTRRXE);
+	mb();
+	musb_writew(musb->mregs,MUSB_INTRRX,musb->int_rx);
+	musb_writew(musb->mregs,MUSB_INTRTX,musb->int_tx);
+	musb_writeb(musb->mregs,MUSB_INTRUSB,musb->int_usb);
+	/* musb_read_clear_generic_interrupt */
+
+	if (musb->int_usb || musb->int_tx || musb->int_rx)
+		retval = musb_interrupt(musb);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+
+	return retval;
+}
+
 irqreturn_t mt_usb_interrupt(int irq, void *dev_id)
 {
   irqreturn_t tmp_status;
