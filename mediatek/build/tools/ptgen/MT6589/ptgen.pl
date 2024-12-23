@@ -122,7 +122,7 @@ my $EMMC_COMPO	= "mediatek/config/$PROJECT/mbr_addr.pl" ;
 
 my $CUSTOM_MEMORYDEVICE_H_NAME  = "mediatek/custom/$PROJECT/preloader/inc/custom_MemoryDevice.h";
 my $PARTITION_DEFINE_H_NAME     = "mediatek/custom/$PROJECT/common/partition_define.h"; # 
-my $PARTITION_DEFINE_C_NAME		= "mediatek/platform/$platform/kernel/drivers/dum-char/partition_define_private.h";
+my $PARTITION_DEFINE_C_NAME		= "mediatek/platform/$platform/kernel/drivers/dum-char/partition_define.c";
 my $EMMC_PART_SIZE_LOCATION		= "mediatek/config/$PROJECT/configs/EMMC_partition_size.mk" ; # store the partition size for ext4 buil
 
 my $PMT_H_NAME          = "mediatek/custom/$PROJECT/common/pmt.h";
