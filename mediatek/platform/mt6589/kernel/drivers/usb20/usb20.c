@@ -19,6 +19,7 @@
 #include <mach/irqs.h>
 #include <mach/eint.h>
 
+#include <linux/musb/musb.h>
 #include <linux/musb/musb_core.h>
 #include <mach/mtk_musb.h>
 #include <linux/musb/musbhsdma.h>
