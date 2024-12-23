@@ -272,33 +272,32 @@ typedef struct {        /*FIXME: check GPIO spec*/
 * GPIO Driver interface 
 ******************************************************************************/
 /*direction*/
-//s32 mt_set_gpio_dir(u32 pin, u32 dir);
 int mt_set_gpio_dir(unsigned long pin, unsigned long dir);
-s32 mt_get_gpio_dir(u32 pin);
+int mt_get_gpio_dir(unsigned long pin);
 
 /*pull enable*/
-s32 mt_set_gpio_pull_enable(u32 pin, u32 enable);
-s32 mt_get_gpio_pull_enable(u32 pin);
+int mt_set_gpio_pull_enable(unsigned long pin, unsigned long enable);
+int mt_get_gpio_pull_enable(unsigned long pin);
 /*pull select*/
-s32 mt_set_gpio_pull_select(u32 pin, u32 select);    
-s32 mt_get_gpio_pull_select(u32 pin);
+int mt_set_gpio_pull_select(unsigned long pin, unsigned long select);    
+int mt_get_gpio_pull_select(unsigned long pin);
 
 /*data inversion*/
-s32 mt_set_gpio_inversion(u32 pin, u32 enable);
-s32 mt_get_gpio_inversion(u32 pin);
+int mt_set_gpio_inversion(unsigned long pin, unsigned long enable);
+int mt_get_gpio_inversion(unsigned long pin);
 
 /*input/output*/
-s32 mt_set_gpio_out(u32 pin, u32 output);
-s32 mt_get_gpio_out(u32 pin);
-s32 mt_get_gpio_in(u32 pin);
+int mt_set_gpio_out(unsigned long pin, unsigned long output);
+int mt_get_gpio_out(unsigned long pin);
+int mt_get_gpio_in(unsigned long pin);
 
 /*mode control*/
-s32 mt_set_gpio_mode(u32 pin, u32 mode);
-s32 mt_get_gpio_mode(u32 pin);
+int mt_set_gpio_mode(unsigned long pin, unsigned long mode);
+int mt_get_gpio_mode(unsigned long pin);
 
 /*clock output setting*/
-s32 mt_set_clock_output(u32 num, u32 src, u32 div);
-s32 mt_get_clock_output(u32 num, u32 *src, u32 *div);
+int mt_set_clock_output(unsigned long num, unsigned long src, unsigned long div);
+int mt_get_clock_output(unsigned long num, unsigned long *src, unsigned long *div);
 
 /*misc functions for protect GPIO*/
 void mt_gpio_set_default(void);
