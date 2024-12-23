@@ -715,7 +715,7 @@ __TEMPLATE
     	print PARTITION_DEFINE_C_NAME &copyright_file_header_for_c();
 	print PARTITION_DEFINE_C_NAME "#include <linux/module.h>\n";
 	print PARTITION_DEFINE_C_NAME "#include \"partition_define.h\"\n";
-	print PARTITION_DEFINE_C_NAME "struct excel_info PartInfo[PART_NUM]={\n";
+	print PARTITION_DEFINE_C_NAME "struct excel_info PartInfo_Private[PART_NUM]={\n";
 	
 	for ($iter=0; $iter<$total_rows; $iter++)
     {
