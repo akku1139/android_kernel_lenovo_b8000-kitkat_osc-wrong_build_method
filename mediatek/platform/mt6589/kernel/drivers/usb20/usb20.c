@@ -57,6 +57,8 @@ static bool platform_init_first = true;
 extern void upmu_interrupt_chrdet_int_en(kal_uint32 val);
 #endif
 
+#define is_host_enabled(musb) ((musb)->board_mode != MUSB_PERIPHERAL)
+
 /*EP Fifo Config*/
 static struct musb_fifo_cfg __initdata fifo_cfg[] = {
 { .hw_ep_num =  1, .style = FIFO_TX,   .maxpacket = 512, .ep_mode = EP_BULK,.mode = BUF_DOUBLE},
