@@ -91,6 +91,8 @@ extern volatile bool usb_is_host;
 #define USB_LOGGER(msg_id,func_name, args...) do{} while(0)
 #endif
 
+#define	is_host_enabled(musb)		(1)
+
 /* NOTE:  otg and peripheral-only state machines start at B_IDLE.
  * OTG or host-only go to A_IDLE when ID is sensed.
  */
