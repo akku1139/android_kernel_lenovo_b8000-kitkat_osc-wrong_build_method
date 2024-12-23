@@ -121,6 +121,7 @@ unsigned int get_md_mem_start_addr(int md_id);
 unsigned int get_md_share_mem_start_addr(int md_id);
 unsigned int get_smem_base_addr(int md_id);
 unsigned int get_modem_is_enabled(int md_id);
+void get_md_post_fix(int md_id, char buf[], char buf_ex[]);
 unsigned int get_modem_support(int md_id);
 unsigned int set_modem_support(int md_id, int md_type);
 

@@ -262,6 +262,72 @@ unsigned int get_smem_base_addr(int md_id)
 EXPORT_SYMBOL(get_smem_base_addr);
 
 
+void get_md_post_fix(int md_id, char buf[], char buf_ex[])
+{
+	// modem_X_YY_K_[Ex].img
+	int		X;
+	char		YY_K[8];
+	int		Ex = 0;	
+
+	unsigned int	feature_val = 0;
+
+	// X
+	X = md_id+1;
+
+	// YY_K
+	YY_K[0] = '\0';
+	switch(md_id)
+	{
+	case MD_SYS1:
+		feature_val = md_support[MD_SYS1];
+		break;
+
+	case MD_SYS2:
+		feature_val = md_support[MD_SYS2];
+		break;
+
+	default:
+		break;
+	}
+	
+	switch(feature_val)
+	{
+		case modem_2g:
+			snprintf(YY_K, 8, "_2g_n");
+			break;
+			
+		case modem_3g:
+			snprintf(YY_K, 8, "_3g_n");
+			break;
+			
+		case modem_wg:
+			snprintf(YY_K, 8, "_wg_n");
+			break;
+			
+		case modem_tg:
+			snprintf(YY_K, 8, "_tg_n");
+			break;			
+			
+		default:
+			break;
+	}
+
+	// [_Ex] Get chip version
+	//if(get_chip_version() == CHIP_SW_VER_01)
+		Ex = 1;
+	//else if(get_chip_version() == CHIP_SW_VER_02)
+		//Ex = 2;
+
+	// Gen post fix
+	if(buf)
+		snprintf(buf, 12, "%d%s", X, YY_K);
+
+	if(buf_ex)
+		snprintf(buf_ex, 12, "%d%s_E%d", X, YY_K, Ex);
+}
+EXPORT_SYMBOL(get_md_post_fix);
+
+
 /***************************************************************************/
 /* provide API called by ccci module                                                                           */
 /*                                                                                                                          */
