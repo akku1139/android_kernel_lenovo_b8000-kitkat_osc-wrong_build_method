@@ -23,6 +23,7 @@
 #include <linux/musb/musb_core.h>
 #include <mach/mtk_musb.h>
 #include <linux/musb/musbhsdma.h>
+#include <linux/musbfsh.h>
 #ifndef CONFIG_MT6589_FPGA
 #include <cust_gpio_usage.h>
 #endif
@@ -45,6 +46,8 @@
 #define ID_PULL_UP 0x0101
 #define ID_PHY_RESET 0x3d11
 #endif
+
+extern struct musb *mtk_musb;
 
 static DEFINE_SEMAPHORE(power_clock_lock);
 
@@ -771,7 +774,9 @@ int __init musb_platform_init(struct musb *musb)
 	return 0;
 }
 
+/*
 int musb_platform_exit(struct musb *musb)
 {
 	return 0;
 }
+*/
