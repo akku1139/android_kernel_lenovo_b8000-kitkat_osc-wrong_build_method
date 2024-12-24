@@ -2755,8 +2755,64 @@ int m4u_alloc_mva(M4U_MODULE_ID_ENUM eModuleID,
 }
 
 
+int m4u_alloc_mva_sg(M4U_MODULE_ID_ENUM eModuleID, 
+								  struct sg_table *sg_table, 
+								  const unsigned int BufSize, 
+								  int security,
+								  int cache_coherent,
+								  unsigned int *pRetMVABuf)
+{
+    mva_info_t *pMvaInfo = NULL;
+    int ret;
+    pMvaInfo=m4u_alloc_garbage_list(0,BufSize,eModuleID,0,0,security,cache_coherent);
+    ret = __m4u_alloc_mva(pMvaInfo, sg_table);
+
+    if(ret == 0)
+    {
+        *pRetMVABuf = pMvaInfo->mvaStart;
+    }
+    else
+    {
+        *pRetMVABuf = 0;
+    }
+    return ret;
+}
+EXPORT_SYMBOL(m4u_alloc_mva_sg);
+
 
 #define MVA_PROTECT_BUFFER_SIZE 1024*1024
+int __m4u_dealloc_mva(M4U_MODULE_ID_ENUM eModuleID, 
+									const unsigned int BufAddr, 
+									const unsigned int BufSize, 
+									const unsigned int MVA,
+									struct sg_table* sg_table) 
+{									
+
+    int ret;
+    
+    M4UINFO("m4u_dealloc_mva, module=%s, addr=0x%x, size=0x%x, MVA=0x%x, mva_end=0x%x\n",
+        m4u_get_module_name(eModuleID), BufAddr, BufSize, MVA, MVA+BufSize-1 );
+
+
+    MMProfileLogEx(M4U_MMP_Events[PROFILE_DEALLOC_MVA], MMProfileFlagStart, eModuleID, BufAddr);
+    MMProfileLogEx(M4U_MMP_Events[PROFILE_DEALLOC_MVA], MMProfileFlagPulse, current->tgid, 0);
+
+    //if(eModuleID!=M4U_CLNTMOD_RDMA_GENERAL && eModuleID!=M4U_CLNTMOD_ROT_GENERAL)
+    {
+        if(m4u_invalid_seq_range_by_mva(m4u_module_2_m4u_id(eModuleID), MVA, MVA+BufSize-1)==0)
+        {
+            M4UMSG("warning: dealloc mva without invalid tlb range!! id=%s,add=0x%x,size=0x%x,mva=0x%x\n",
+                m4u_get_module_name(eModuleID), BufAddr, BufSize, MVA);
+        }
+    }
+    
+    ret = m4u_dealloc_mva_dynamic(eModuleID, BufAddr, BufSize, MVA, sg_table);
+
+    MMProfileLogEx(M4U_MMP_Events[PROFILE_DEALLOC_MVA], MMProfileFlagEnd, MVA, BufSize);
+    return ret;
+
+}
+
 int m4u_dealloc_mva(M4U_MODULE_ID_ENUM eModuleID, 
 									const unsigned int BufAddr, 
 									const unsigned int BufSize, 
@@ -2786,6 +2842,14 @@ int m4u_dealloc_mva(M4U_MODULE_ID_ENUM eModuleID,
 
 }
 
+int m4u_dealloc_mva_sg(M4U_MODULE_ID_ENUM eModuleID, 
+									struct sg_table* sg_table,
+									const unsigned int BufSize, 
+									const unsigned int MVA) 
+{									
+    return __m4u_dealloc_mva(eModuleID, 0, BufSize, MVA, sg_table);
+}
+EXPORT_SYMBOL(m4u_dealloc_mva_sg);
 
 int m4u_invalid_seq_all(M4U_MODULE_ID_ENUM eModuleID) 
 {

@@ -431,10 +431,22 @@ int m4u_alloc_mva(M4U_MODULE_ID_ENUM eModuleID,
                     int cache_coherent,
                     unsigned int *pRetMVABuf);
 
+int m4u_alloc_mva_sg(M4U_MODULE_ID_ENUM eModuleID, 
+                     struct sg_table *sg_table, 
+                     const unsigned int BufSize, 
+                     int security,
+                     int cache_coherent,
+                     unsigned int *pRetMVABuf);
+
 int m4u_dealloc_mva(M4U_MODULE_ID_ENUM eModuleID, 
                     const unsigned int BufAddr, 
                     const unsigned int BufSize,
                     const unsigned int MVA);	
+
+int m4u_dealloc_mva_sg(M4U_MODULE_ID_ENUM eModuleID, 
+                       struct sg_table* sg_table,
+                       const unsigned int BufSize, 
+                       const unsigned int MVA);
 
 int m4u_insert_wrapped_range(M4U_MODULE_ID_ENUM eModuleID, 
                              M4U_PORT_ID_ENUM portID, 
