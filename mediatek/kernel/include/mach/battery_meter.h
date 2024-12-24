@@ -2,7 +2,7 @@
 #define _BATTERY_METER_H
 
 #include <mach/mt_typedefs.h>
-#include "cust_battery_meter.h"
+//#include "cust_battery_meter.h"
 // ============================================================
 // define
 // ============================================================
