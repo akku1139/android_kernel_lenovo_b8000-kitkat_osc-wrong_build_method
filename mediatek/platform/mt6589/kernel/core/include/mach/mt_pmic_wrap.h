@@ -43,6 +43,11 @@ S32 pwrap_write( U32  adr, U32  wdata );
 S32 pwrap_init ( void );
 //---end ---external API----------------------------------------------------
 
+U32 pmic_wrap_eint_status(void);
+void pmic_wrap_eint_clr(int offset);
+U32 mt_pmic_wrap_eint_status(void);
+void mt_pmic_wrap_eint_clr(int offset);
+struct mt_pmic_wrap_driver *get_mt_pmic_wrap_drv(void);
 
 //---start ---internal API--------------------------------------------------
 S32 _pwrap_wacs2_nochk( U32 write, U32 adr, U32 wdata, U32 *rdata );
