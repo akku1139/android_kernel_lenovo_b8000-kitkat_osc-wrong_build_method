@@ -3,6 +3,23 @@
 //#include <mach/typedefs.h>
 #include <linux/smp.h>
 #include <mach/mt_typedefs.h>
+#include <linux/device.h>
+
+struct mt_pmic_wrap_driver{
+
+    struct device_driver driver;
+        S32 (*wacs2_hal)( U32  write, U32  adr, U32  wdata, U32 *rdata );
+
+        S32 (*show_hal)(char *buf);
+        S32 (*store_hal)(const char *buf, size_t count);
+
+        S32 (*suspend)(void);
+        void (*resume)(void);
+};
+typedef enum {
+    PWRAP_READ  = 0,
+    PWRAP_WRITE = 1,
+}PWRAP_OPS;
 
 #define PMIC_WRAP_DEBUG
 
