@@ -33,6 +33,7 @@ jobs:
 
       - name: Setup env
         run: |
+          sudo mount -t tmpfs tmpfs /home/runner/work/android_kernel_lenovo_b8000-kitkat_osc/
           sudo ln -sf /usr/bin/bash /usr/bin/sh
           echo `pwd`/toolchain/Python-2.7.18 >> $GITHUB_PATH
           mkdir -p /dev/shm/ccache
