@@ -2765,7 +2765,7 @@ int m4u_alloc_mva_sg(M4U_MODULE_ID_ENUM eModuleID,
     mva_info_t *pMvaInfo = NULL;
     int ret;
     pMvaInfo=m4u_alloc_garbage_list(0,BufSize,eModuleID,0,0,security,cache_coherent);
-    ret = __m4u_alloc_mva(pMvaInfo, sg_table);
+    ret = __m4u_alloc_mva(pMvaInfo);
 
     if(ret == 0)
     {
@@ -2806,7 +2806,7 @@ int __m4u_dealloc_mva(M4U_MODULE_ID_ENUM eModuleID,
         }
     }
     
-    ret = m4u_dealloc_mva_dynamic(eModuleID, BufAddr, BufSize, MVA, sg_table);
+    ret = m4u_dealloc_mva_dynamic(eModuleID, BufAddr, BufSize, MVA);
 
     MMProfileLogEx(M4U_MMP_Events[PROFILE_DEALLOC_MVA], MMProfileFlagEnd, MVA, BufSize);
     return ret;
