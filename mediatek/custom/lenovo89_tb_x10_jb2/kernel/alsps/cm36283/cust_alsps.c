@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <mach/mt_pm_ldo.h>
 #include <cust_alsps.h>
+#include <mach/upmu_common.h>
 
 static struct alsps_hw cust_alsps_hw = {
     .i2c_num    = 3,

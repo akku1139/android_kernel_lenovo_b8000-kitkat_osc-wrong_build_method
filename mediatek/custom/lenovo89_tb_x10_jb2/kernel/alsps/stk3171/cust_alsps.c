@@ -3,6 +3,7 @@
 #include <mach/mt_pm_ldo.h>
 #include <cust_alsps.h>
 //#include <mach/mt6577_pm_ldo.h>
+#include <mach/upmu_common.h>
 
 static struct alsps_hw_stk cust_alsps_hw = {
     .i2c_num    = 3,

@@ -2,6 +2,7 @@
 #include <mach/mt_pm_ldo.h>
 #include <cust_alsps.h>
 //#include <mach/mt6575_pm_ldo.h>
+#include <mach/upmu_common.h>
 static struct alsps_hw cust_alsps_hw = {
 	.i2c_num    = 3,
 	.polling_mode_ps =0,
