@@ -25,3 +25,11 @@ struct alsps_hw *get_cust_alsps_hw(void) {
 int APDS9930_CMM_PPCOUNT_VALUE = 0x08;
 int APDS9930_CMM_CONTROL_VALUE = 0xE4;
 int ZOOM_TIME = 4;
+
+int pmic_ldo_suspend_enable(int enable)
+{
+        //0 for disable suspend, 1 for enable suspend
+        upmu_set_vio18_lp_sel(enable);
+        upmu_set_vio28_lp_sel(enable);
+        return 0;
+}

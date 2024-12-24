@@ -24,3 +24,10 @@ int TMD2771_CMM_PPCOUNT_VALUE = 0x20;
 int ZOOM_TIME = 60;
 int TMD2771_CMM_CONTROL_VALUE = 0xE0;
 
+int pmic_ldo_suspend_enable(int enable)
+{
+        //0 for disable suspend, 1 for enable suspend
+        upmu_set_vio18_lp_sel(enable);
+        upmu_set_vio28_lp_sel(enable);
+        return 0;
+}

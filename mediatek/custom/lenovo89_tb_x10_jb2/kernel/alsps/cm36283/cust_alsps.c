@@ -18,3 +18,10 @@ struct alsps_hw *get_cust_alsps_hw(void) {
     return &cust_alsps_hw;
 }
 
+int pmic_ldo_suspend_enable(int enable)
+{
+        //0 for disable suspend, 1 for enable suspend
+        upmu_set_vio18_lp_sel(enable);
+        upmu_set_vio28_lp_sel(enable);
+        return 0;
+}
