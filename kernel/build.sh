@@ -6,7 +6,7 @@ release="n"
 rebuild="n"
 clean="n"
 makeflags="-w"
-makedefs="V=0 KBUILD_LDFLAGS=--allow-multiple-definition"
+makedefs="V=0"
 makejobs=${MAKEJOBS}
 curdir=`pwd`
 if [ "${KBUILD_OUTPUT_SUPPORT}" == "yes" ];then
