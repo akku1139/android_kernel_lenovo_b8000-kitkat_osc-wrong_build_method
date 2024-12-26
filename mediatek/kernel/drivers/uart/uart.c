@@ -54,6 +54,7 @@
 #include <mach/mt_typedefs.h>
 #include <mach/irqs.h>
 //#include <mach/mt_clkmgr.h>
+#include <mach/mt_cirq.h>
 #include <linux/slab.h>
 #include "linux/delay.h"
 #include <linux/syscore_ops.h>
