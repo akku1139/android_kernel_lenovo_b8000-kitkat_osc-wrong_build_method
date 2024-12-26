@@ -65,7 +65,7 @@
 #include <mach/charging.h>
 #include <mach/battery_common.h>
 #include <mach/battery_meter.h>
-#include "cust_battery_meter.h"
+//#include "cust_battery_meter.h"
 #include <mach/mt_boot.h>
 #include "mach/mtk_rtc.h"
 

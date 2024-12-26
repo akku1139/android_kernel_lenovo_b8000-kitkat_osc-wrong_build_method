@@ -26,7 +26,7 @@
 #include <mach/battery_common.h>
 #include <mach/battery_meter.h>
 #include <mach/battery_meter_hal.h>
-#include "cust_battery_meter.h"
+//#include "cust_battery_meter.h"
 #include "cust_battery_meter_table.h"
 #include "mach/mtk_rtc.h"
 
