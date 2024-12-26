@@ -1006,7 +1006,7 @@ void mt_set_pwm_3dlcm_enable(BOOL enable)
 	}
 
 	spin_lock_irqsave ( &dev->lock, flags );
-	mt_set_pwm_3dlcm_enable_hal(enable);
+	//mt_set_pwm_3dlcm_enable_hal(enable);
 	spin_unlock_irqrestore ( &dev->lock, flags );
 	
 	return;
@@ -1026,7 +1026,7 @@ void mt_set_pwm_3dlcm_inv(U32 pwm_no, BOOL inv)
 	}
 
 	spin_lock_irqsave ( &dev->lock, flags );
-	mt_set_pwm_3dlcm_inv_hal(pwm_no, inv);
+	//mt_set_pwm_3dlcm_inv_hal(pwm_no, inv);
 	spin_unlock_irqrestore ( &dev->lock, flags );
 	return;
 }
@@ -1042,7 +1042,7 @@ void mt_set_pwm_3dlcm_base(U32 pwm_no)
 	}
 
 	spin_lock_irqsave ( &dev->lock, flags );
-	mt_set_pwm_3dlcm_base_hal(pwm_no);
+	//mt_set_pwm_3dlcm_base_hal(pwm_no);
 	spin_unlock_irqrestore ( &dev->lock, flags );
 	return;
 }
@@ -1058,7 +1058,7 @@ void mt_pwm_26M_clk_enable(U32 enable)
 	}
 
 	spin_lock_irqsave ( &dev->lock, flags );
-	mt_pwm_26M_clk_enable_hal(enable);
+	//mt_pwm_26M_clk_enable_hal(enable);
 	spin_unlock_irqrestore ( &dev->lock, flags );
 	return;
 }
