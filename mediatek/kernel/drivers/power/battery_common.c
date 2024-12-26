@@ -59,7 +59,7 @@
 #include <mach/mt_gpt.h>
 #include <mach/mt_boot.h>
 
-//#include <cust_charging.h>  
+#include <cust_charging.h>  
 #include <mach/upmu_common.h>
 #include <mach/upmu_hw.h>
 #include <mach/charging.h>

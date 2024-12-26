@@ -31,7 +31,7 @@
 #include <linux/kernel.h>
 #include <mach/battery_common.h>
 #include <mach/charging.h>
-//#include "cust_charging.h"
+#include "cust_charging.h"
 #include <mach/mt_boot.h>
 #include <mach/battery_meter.h>
 
