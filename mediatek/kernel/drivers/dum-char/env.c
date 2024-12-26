@@ -359,7 +359,7 @@ static void load_default_env(void)
 	
 	printk("[%s]find %s = %llx\n",MODULE_NAME,DATA_FREE_SIZE_TH_NAME,data_free_size_th);
 }
-__weak char *get_env(char *name)
+char *get_env(char *name)
 {
 	int i, nxt;
 	printk("[%s]get_env %s\n",MODULE_NAME,name);

@@ -2741,7 +2741,7 @@ int charger_hv_detect_sw_thread_handler(void *unused)
     return 0;
 }
 
-enum hrtimer_restart __weak charger_hv_detect_sw_workaround(struct hrtimer *timer)
+enum hrtimer_restart charger_hv_detect_sw_workaround(struct hrtimer *timer)
 {
     charger_hv_detect_flag = KAL_TRUE; 
     wake_up_interruptible(&charger_hv_detect_waiter);
