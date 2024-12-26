@@ -1,1 +1,1 @@
-obj-y += mt_auxadc_hal.o
+obj-y += mt_auxadc_hal.o mt_auxadc_hal.o
