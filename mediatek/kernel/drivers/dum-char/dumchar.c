@@ -173,7 +173,7 @@ EXPORT_SYMBOL(eMMC_rw_x);
 #if defined(MTK_EMMC_SUPPORT)
 #include <linux/syscalls.h>
 
-void emmc_create_sys_symlink (struct mmc_card *card)
+__weak void emmc_create_sys_symlink (struct mmc_card *card)
 {
 	int i = 0;
 	struct disk_part_iter piter;
@@ -1019,7 +1019,7 @@ int mtd_close_read_ahead(void){
 #endif
 #endif
 
-int dumchar_release (struct inode *inode, struct file *filp)
+__weak int dumchar_release (struct inode *inode, struct file *filp)
 {
 	struct file_obj *fo = filp->private_data;
 	struct dumchar_dev *dev=&dumchar_devices[fo->index];

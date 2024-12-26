@@ -345,7 +345,7 @@ u32 cs_cpu_read(const void __iomem *addr_base, u32 offset)
 	return actual;
 }
 
-void cs_cpu_lock(void __iomem *addr_base)
+__weak void cs_cpu_lock(void __iomem *addr_base)
 {
 	u32 result;
 

@@ -488,7 +488,7 @@ void MT_trace_hardirqs_off(void)
 }
 EXPORT_SYMBOL(MT_trace_hardirqs_off);
 
-void mt_dump_irq_off_traces(void)
+__weak void mt_dump_irq_off_traces(void)
 {
 #ifdef CONFIG_MT_SCHED_MONITOR
     int i;

@@ -206,7 +206,7 @@ struct mtuart_sysobj {
     .console_enable = ATOMIC_INIT(1),
 };
 /*---------------------------------------------------------------------------*/
-int mtk_uart_sysfs(void) 
+int __weak mtk_uart_sysfs(void) 
 {
     struct mtuart_sysobj *obj = &mtk_uart_sysobj;
     int idx;
@@ -422,7 +422,7 @@ ssize_t mtk_uart_lsr_status_show(struct kobject *kobj, char *buffer)
     return (PAGE_SIZE-remain);
 }
 /*---------------------------------------------------------------------------*/
-ssize_t mtk_uart_lsr_status_store(struct kobject *kobj, const char *buffer, size_t size) 
+__weak ssize_t mtk_uart_lsr_status_store(struct kobject *kobj, const char *buffer, size_t size) 
 {
     int u1_lsr, u2_lsr, u3_lsr, u4_lsr;
     int res = sscanf(buffer, "%x %x %x %x", 
