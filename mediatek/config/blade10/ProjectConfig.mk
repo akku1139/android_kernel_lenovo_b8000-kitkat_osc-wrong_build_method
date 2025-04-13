@@ -452,7 +452,7 @@ MTK_CDS_EM_SUPPORT=yes
 MTK_CHIP_VER=S01
 
 # Decide whether to support mtk image size  check
-MTK_CHKIMGSIZE_SUPPORT=no
+MTK_CHKIMGSIZE_SUPPORT=yes
 MTK_CMAS_SUPPORT=no
 MTK_CMCC_MOBILEMARKET_SUPPORT=no
 
@@ -1175,7 +1175,7 @@ MTK_WEATHER_WIDGET_APP=yes
 MTK_WEB_NOTIFICATION_SUPPORT=yes
 
 # Define MTK weekly number(internal use only)
-MTK_WEEK_NO= 
+MTK_WEEK_NO=
 
 # yes/no
 MTK_WFD_SUPPORT=yes
@@ -1234,7 +1234,7 @@ WIFI_WEP_KEY_ID_SET=no
 WIFI_WPS_PIN_FROM_AP=no
 
 # Define which modem will be used.
-CUSTOM_MODEM=lenovo89_tb_x8_jb2_md1_hspa
+CUSTOM_MODEM=
 
 # Set the option to Yes to force to send SCRI message during the screen is on if the network doesn't support R8 Fast Dormancy.
 MTK_FD_FORCE_REL_SUPPORT=yes
