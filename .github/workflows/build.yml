@@ -47,6 +47,13 @@ jobs:
         env:
           MAKEJOBS: '-j6'
 
+      - name: Show Log
+        run: cat out/target/product/blade10_kernel.log
+
+      - name: Show Log (error)
+        if: failure()
+        run: cat out/target/product/blade10_kernel.log_err
+
       - name: Release
         run: gh release create "build-$(date +%Y-%m-%d-%H-%M-%S)" build_result.tar.gz
         env:
