@@ -452,7 +452,7 @@ MTK_CDS_EM_SUPPORT=yes
 MTK_CHIP_VER=S01
 
 # Decide whether to support mtk image size  check
-MTK_CHKIMGSIZE_SUPPORT=no
+MTK_CHKIMGSIZE_SUPPORT=yes
 MTK_CMAS_SUPPORT=no
 MTK_CMCC_MOBILEMARKET_SUPPORT=no
 
@@ -1175,7 +1175,7 @@ MTK_WEATHER_WIDGET_APP=yes
 MTK_WEB_NOTIFICATION_SUPPORT=yes
 
 # Define MTK weekly number(internal use only)
-MTK_WEEK_NO= 
+MTK_WEEK_NO=
 
 # yes/no
 MTK_WFD_SUPPORT=yes
