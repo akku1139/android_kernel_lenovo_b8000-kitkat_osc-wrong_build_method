@@ -47,11 +47,7 @@ jobs:
         env:
           MAKEJOBS: '-j6'
 
-      - name: Show Log
-        if: ${{ !cancelled() }}
-        run: cat out/target/product/blade10_kernel.log
-
-      - name: Show Log (error)
+      - name: Show Error Log
         if: failure()
         run: cat out/target/product/blade10_kernel.log_err
 
