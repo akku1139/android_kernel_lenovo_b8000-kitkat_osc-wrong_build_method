@@ -11,15 +11,15 @@ export MTK_ROOT_CUSTOM="$IT/mediatek/custom/"
 
 echo "**** Cleaning kernel tree ****"
 cd kernel
-TARGET_PRODUCT=lenovo89_tb_x10_kk make mrproper
+TARGET_PRODUCT=lenovo89_tb_x10_jb2 make mrproper
 cd ..
 
 #cd kernel
-#bash -e build.sh lenovo89_tb_x10_kk
+#bash -e build.sh lenovo89_tb_x10_jb2
 #cd ..
 
 echo "**** Building kernel ****"
-./makeMtk -t lenovo89_tb_x10_kk n k
+./makeMtk -t lenovo89_tb_x10_jb2 n k
 
 echo "**** Successfully built kernel ****"
 
