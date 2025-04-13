@@ -4,7 +4,7 @@ For the correct build method, see README in bq.
 
 https://github.com/bq/aquaris-5HD#version-2x-kitkat
 
-
+## not wrong?
 
 
 # lenovo_b6000-b8000_open_source_code_test
