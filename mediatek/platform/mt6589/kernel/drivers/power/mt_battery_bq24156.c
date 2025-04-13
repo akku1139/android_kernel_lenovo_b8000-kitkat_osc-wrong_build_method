@@ -80,10 +80,8 @@ void pchr_turn_on_charging_bq24156 (void);
 
 #if defined(HIGH_BATTERY_VOLTAGE_SUPPORT)
 int g_enable_high_vbat_spec = 1;
-int BQ24156_HIGH_VOLTAGE_THRESHOLD = 4415; //4360*1.01 + 10 
 #else
-int g_enable_high_vbat_spec = 0;
-int BQ24156_HIGH_VOLTAGE_THRESHOLD = 4260; //4200*1.01 + 10
+int g_enable_high_vbat_spec = 0;    
 #endif
 
 extern int g_pmic_cid;
@@ -2934,12 +2932,11 @@ void mt_battery_notify_check(void)
 #endif
 
 #if defined(BATTERY_NOTIFY_CASE_0004)
-        if(BMT_status.bat_vol > BQ24156_HIGH_VOLTAGE_THRESHOLD)
+        if(BMT_status.bat_vol > 4350)
         //if(BMT_status.bat_vol > 3800) //test
         {
             g_BatteryNotifyCode |= 0x0008;
-            xlog_printk(ANDROID_LOG_INFO, "Power/Battery", "[BATTERY] bat_vlot(%ld) > %dmV\n",
-                BMT_status.bat_vol, BQ24156_HIGH_VOLTAGE_THRESHOLD);
+            xlog_printk(ANDROID_LOG_INFO, "Power/Battery", "[BATTERY] bat_vlot(%ld) > 4350mV\n", BMT_status.bat_vol);
         }
         else
         {

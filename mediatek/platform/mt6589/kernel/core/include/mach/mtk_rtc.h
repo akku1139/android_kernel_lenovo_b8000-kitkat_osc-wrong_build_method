@@ -78,7 +78,7 @@ extern bool crystal_exist_status(void);
 #define rtc_enable_writeif()		do {} while (0)
 #define rtc_disable_writeif()		do {} while (0)
 #define rtc_mark_recovery()		do {} while (0)
-#define rtc_mark_fast()			do {} while (0)
+#define rtc_mark_fast()		do {} while (0)
 #define rtc_rdwr_uart_bits(val)		({ 0; })
 #define rtc_bbpu_power_down()		do {} while (0)
 #define rtc_read_pwron_alarm(alm)	do {} while (0)

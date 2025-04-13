@@ -251,7 +251,7 @@ UINT32 DSI_read_lcm_reg(void);
 UINT32 DSI_dcs_read_lcm_reg(unsigned char);
 UINT32 DSI_dcs_read_lcm_reg_v2(UINT8 cmd, UINT8 *buffer, UINT8 buffer_size);
 DSI_STATUS DSI_write_lcm_fb(unsigned int addr, bool long_length);
-DSI_STATUS DSI_read_lcm_fb(void);
+DSI_STATUS DSI_read_lcm_fb(unsigned char *buffer);
 
 DSI_STATUS DSI_enable_MIPI_txio(bool en);
 bool Need_Wait_ULPS(void);
@@ -270,6 +270,9 @@ DSI_STATUS DSI_Change_CLK(unsigned int clk);
 DSI_STATUS DSI_Capture_Framebuffer(unsigned int pvbuf, unsigned int bpp, bool cmd_mode);
 DSI_STATUS DSI_TE_Enable(BOOL enable);
 void DSI_PLL_Select(unsigned int pll_select);
+unsigned int DSI_Check_LCM(UINT32 color);
+unsigned int DSI_BLS_Query(void);
+void DSI_BLS_Enable(bool enable);
 #ifdef __cplusplus
 }
 #endif

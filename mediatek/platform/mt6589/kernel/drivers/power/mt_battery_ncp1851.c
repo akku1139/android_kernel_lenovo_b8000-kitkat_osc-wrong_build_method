@@ -146,7 +146,7 @@ extern kal_bool get_gFG_Is_Charging(void);
 extern bool mt_usb_is_device(void);
 extern void mt_usb_connect(void);
 extern void mt_usb_disconnect(void);
-extern bool mt_usb_is_ready(void);
+//extern bool mt_usb_is_ready(void);
 
 
 extern CHARGER_TYPE mt_charger_type_detection(void);
@@ -3480,7 +3480,8 @@ void PrechargeCheckStatus(void)
     
     while(1)
     {
-        if((g_bat_init_flag == 1) && (g_pmic_init_for_ncp1851 == 1) && mt_usb_is_ready()) //make sure mt6320_battery_probe register finished
+        //if((g_bat_init_flag == 1) && (g_pmic_init_for_ncp1851 == 1) && mt_usb_is_ready()) //make sure mt6320_battery_probe register finished
+        if((g_bat_init_flag == 1) && (g_pmic_init_for_ncp1851 == 1)) //make sure mt6320_battery_probe register finished
             break;
         else
             msleep(1000);
@@ -4760,7 +4761,7 @@ void battery_kthread_hrtimer_init(void)
 {
     ktime_t ktime;
 
-    ktime = ktime_set(10, 0);	// 10s, 10* 1000 ms
+    ktime = ktime_set(5, 0);	// 10s, 10* 1000 ms
     hrtimer_init(&battery_kthread_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     battery_kthread_timer.function = battery_kthread_hrtimer_func;    
     hrtimer_start(&battery_kthread_timer, ktime, HRTIMER_MODE_REL);
@@ -5002,11 +5003,6 @@ static int mt6320_battery_resume(struct platform_device *dev)
     return 0;
 }
 
-struct platform_device MT6320_battery_device = {
-    .name   = "mt6320-battery",
-    .id	    = -1,
-};
-
 static struct platform_driver mt6320_battery_driver = {
     .probe         = mt6320_battery_probe,
     .remove        = mt6320_battery_remove,
@@ -5016,7 +5012,7 @@ static struct platform_driver mt6320_battery_driver = {
     .resume        = mt6320_battery_resume,
     //#endif
     .driver     = {
-        .name = "mt6320-battery",
+        .name = "battery",
     },
 };
 
@@ -5167,12 +5163,6 @@ static int __init mt6320_battery_init(void)
 {
     int ret;
 
-    ret = platform_device_register(&MT6320_battery_device);
-    if (ret) {
-        xlog_printk(ANDROID_LOG_INFO, "Power/Battery", "****[mt6320_battery_driver] Unable to device register(%d)\n", ret);
-	return ret;
-    }
-    
     ret = platform_driver_register(&mt6320_battery_driver);
     if (ret) {
         xlog_printk(ANDROID_LOG_INFO, "Power/Battery", "****[mt6320_battery_driver] Unable to register driver (%d)\n", ret);

@@ -33,7 +33,7 @@ static wait_queue_head_t _dsi_dcs_read_wait_queue;
 static wait_queue_head_t _dsi_wait_bta_te;
 static wait_queue_head_t _dsi_wait_vm_done_queue;
 #endif
-static unsigned int _dsi_reg_update_wq_flag = 0;
+//static unsigned int _dsi_reg_update_wq_flag = 0;
 static DECLARE_WAIT_QUEUE_HEAD(_dsi_reg_update_wq);
 
 #include "debug.h"
@@ -70,13 +70,10 @@ static PDSI_VM_CMDQ_REGS const DSI_VM_CMD_REG = (PDSI_VM_CMDQ_REGS)(DSI_BASE + 0
 static PDSI_PHY_REGS const DSI_PHY_REG = (PDSI_PHY_REGS)(MIPI_CONFIG_BASE);
 static PDSI_CMDQ_REGS const DSI_CMDQ_REG = (PDSI_CMDQ_REGS)(DSI_BASE+0x180);
 static PLCD_REGS const LCD_REG = (PLCD_REGS)(LCD_BASE);
-
+#ifdef BUILD_UBOOT
 static MIPITX_CFG0_REG mipitx_con0;
+#endif
 static MIPITX_CFG1_REG mipitx_con1;
-static MIPITX_CFG3_REG mipitx_con3;
-static MIPITX_CFG6_REG mipitx_con6;
-static MIPITX_CFG8_REG mipitx_con8;
-static MIPITX_CFG9_REG mipitx_con9;
 
 extern LCM_DRIVER *lcm_drv;
 static bool dsi_log_on = false;
@@ -158,13 +155,13 @@ DSI_PLL_CONFIG pll_config[50] =
 #ifndef BUILD_UBOOT
 
 
-static bool dsi_esd_recovery = false;
+//static bool dsi_esd_recovery = false;
 static bool dsi_noncont_clk_enabled = true;
 static bool dsi_glitch_enable = false;
 static unsigned int dsi_noncont_clk_period = 1;
-static bool dsi_int_te_enabled = false;
-static unsigned int dsi_int_te_period = 1;
-static unsigned int dsi_dpi_isr_count = 0;
+//static bool dsi_int_te_enabled = false;
+//static unsigned int dsi_int_te_period = 1;
+//static unsigned int dsi_dpi_isr_count = 0;
 unsigned long g_handle_esd_flag;
 
 static volatile bool lcdStartTransfer = false;
@@ -215,8 +212,9 @@ static bool wait_vm_done_irq = false;
 static irqreturn_t _DSI_InterruptHandler(int irq, void *dev_id)
 {   
     DSI_INT_STATUS_REG status = DSI_REG->DSI_INTSTA;
+#ifdef ENABLE_DSI_ERROR_REPORT
     static unsigned int prev_error = 0;
-
+#endif
     MMProfileLogEx(MTKFB_MMP_Events.DSIIRQ, MMProfileFlagPulse, *(unsigned int*)&status, lcdStartTransfer);
 	if(dsi_log_on)
 		printk("DSI IRQ, value = 0x%x!!\n", INREG32(0xF400D00C));
@@ -350,9 +348,6 @@ static irqreturn_t _DSI_InterruptHandler(int irq, void *dev_id)
 }
 #endif
 #ifndef BUILD_UBOOT
-void DSI_GetVsyncCnt()
-{
-}
 enum hrtimer_restart dsi_te_hrtimer_func(struct hrtimer *timer)
 {
 //	long long ret;
@@ -373,7 +368,7 @@ enum hrtimer_restart dsi_te_hrtimer_func(struct hrtimer *timer)
 #endif
 
 
-static unsigned int vsync_wait_time = 0;
+//static unsigned int vsync_wait_time = 0;
 void DSI_WaitTE(void)
 {
 #ifndef BUILD_UBOOT	
@@ -641,7 +636,7 @@ init_waitqueue_head(&_vsync_wait_queue);
 
 	
 #endif
-    if (lcm_params->dsi.mode == DSI_CMD_MODE)
+    if (lcm_params->dsi.mode == CMD_MODE)
         disp_register_irq(DISP_MODULE_RDMA0, _DSI_RDMA0_IRQ_Handler);
     spin_lock_init(&dsi_glitch_detect_lock);
     return DSI_STATUS_OK;
@@ -766,11 +761,10 @@ static void DSI_WaitBtaTE(void)
 #endif
 
 	if(DSI_REG->DSI_MODE_CTRL.MODE != CMD_MODE)
-		return DSI_STATUS_OK;
+		return;
 
 	_WaitForEngineNotBusy();
 
-	DSI_clk_HS_mode(0);
 	// backup command queue setting.
 	DSI_BackUpCmdQ();
 
@@ -810,7 +804,7 @@ static void DSI_WaitBtaTE(void)
 		///do necessary reset here
 		DSI_Reset();
 		dsiTeEnable = false;//disable TE
-		return ret;
+		return;
 	}
 
 	// After setting DSI_RACK, it needs to wait for CMD_DONE interrupt.
@@ -895,7 +889,6 @@ DSI_STATUS DSI_EnableClk(void)
 
 DSI_STATUS DSI_EnableVM_CMD(void)
 {
-	unsigned int read_timeout_ms = 100;
 	OUTREGBIT(DSI_START_REG,DSI_REG->DSI_START,VM_CMD_START,0);
 	OUTREGBIT(DSI_START_REG,DSI_REG->DSI_START,VM_CMD_START,1);
     return DSI_STATUS_OK;
@@ -936,7 +929,6 @@ DSI_STATUS DSI_StartTransfer(bool isMutexLocked)
 	 _WaitForEngineNotBusy();
      lcdStartTransfer = true;
     // To trigger frame update.
-	DSI_clk_HS_mode(1);
     DSI_EnableClk();
     mutex_unlock(&OverlaySettingMutex);
     if (!isMutexLocked)
@@ -945,21 +937,14 @@ DSI_STATUS DSI_StartTransfer(bool isMutexLocked)
 	return DSI_STATUS_OK;
 }
 
-unsigned int glitch_detect_fail_cnt = 0;
-
 unsigned int DSI_Detect_CLK_Glitch(void)
 {
-    int data_array[2];
 	DSI_T0_INS t0;
-	char i, j;
+	char i;
 	int read_timeout_cnt=10000;
 	int read_timeout_ret = 0;
     unsigned long long start_time,end_time;
-	
-	if(glitch_detect_fail_cnt>2){
-		return 0;
-	}
-	
+
 	while(DSI_REG->DSI_INTSTA.BUSY);
 	OUTREG32(&DSI_REG->DSI_INTSTA, 0x0);
 
@@ -977,17 +962,10 @@ unsigned int DSI_Detect_CLK_Glitch(void)
 	OUTREGBIT(DSI_INT_STATUS_REG,DSI_REG->DSI_INTSTA,CMD_DONE,0);
     
 	MMProfileLogEx(MTKFB_MMP_Events.Debug, MMProfileFlagPulse, 0, 0);
-#if 1
-	OUTREG32(&DSI_CMDQ_REG->data[0], 0x00ff1500);
-	OUTREG32(&DSI_REG->DSI_CMDQ_SIZE, 1);
-		 
-	OUTREGBIT(DSI_START_REG,DSI_REG->DSI_START,DSI_START,0);
-	OUTREGBIT(DSI_START_REG,DSI_REG->DSI_START,DSI_START,1);
-	while(DSI_REG->DSI_INTSTA.CMD_DONE == 0);
-	OUTREGBIT(DSI_INT_STATUS_REG,DSI_REG->DSI_INTSTA,CMD_DONE,0);
- #endif
 	for(i=0;i<try_times;i++)
 	{
+		DSI_RX_DATA_REG read_data0;
+		DSI_RX_DATA_REG read_data1;
 		DSI_clk_HS_mode(0);
 		 
     	MMProfileLogEx(MTKFB_MMP_Events.Debug, MMProfileFlagPulse, 0, 9);
@@ -1042,9 +1020,6 @@ unsigned int DSI_Detect_CLK_Glitch(void)
 		  OUTREGBIT(DSI_START_REG,DSI_REG->DSI_START,DSI_START,0);
 	      OUTREGBIT(DSI_START_REG,DSI_REG->DSI_START,DSI_START,1);
 		
-		 DSI_RX_DATA_REG read_data0;
-		 DSI_RX_DATA_REG read_data1;
-
 			read_timeout_cnt=1000;
     	MMProfileLogEx(MTKFB_MMP_Events.Debug, MMProfileFlagPulse, 0, 5);
 		start_time = sched_clock();
@@ -1151,12 +1126,9 @@ unsigned int DSI_Detect_CLK_Glitch(void)
     MMProfileLogEx(MTKFB_MMP_Events.Debug, MMProfileFlagPulse, 0, 8);
 #if 1
 //	if(glitch_log_on)
-	if(i == try_times){
-		glitch_detect_fail_cnt++;
+	if(i == try_times)
 		return 1;
-	}
 #endif
-	glitch_detect_fail_cnt = 0;
 	return 0;
 }
 
@@ -1362,7 +1334,7 @@ unsigned int dsi_cycle_time;
 void DSI_Config_VDO_Timing(LCM_PARAMS *lcm_params)
 {
 	unsigned int line_byte;
-	unsigned int horizontal_sync_active_byte;
+	unsigned int horizontal_sync_active_byte = 0;
 	unsigned int horizontal_backporch_byte;
 	unsigned int horizontal_frontporch_byte;
 	unsigned int horizontal_bllp_byte;
@@ -1443,7 +1415,7 @@ void DSI_PHY_clk_setting(LCM_PARAMS *lcm_params)
 
 	MASKREG32(MIPI_CONFIG_BASE + 0x60, 0x600, 0x400);
 	
-	if(LCM_DSI_6589_PLL_CLOCK_NULL != lcm_params->dsi.PLL_CLOCK){
+	if((LCM_DSI_6589_PLL_CLOCK_NULL != lcm_params->dsi.PLL_CLOCK) && (lcm_params->dsi.PLL_CLOCK <= LCM_DSI_6589_PLL_CLOCK_520)){
 		unsigned int i = lcm_params->dsi.PLL_CLOCK - 1;
 		printk("LCM PLL Config = %d, %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i, pll_config[i].TXDIV0, pll_config[i].TXDIV1, pll_config[i].FBK_SEL, pll_config[i].FBK_DIV,
 		pll_config[i].PRE_DIV, pll_config[i].RG_BR, pll_config[i].RG_BC, pll_config[i].RG_BIR, pll_config[i].RG_BIC, pll_config[i].RG_BP);
@@ -1563,7 +1535,7 @@ void DSI_PHY_TIMCONFIG(LCM_PARAMS *lcm_params)
 	unsigned int ui;
 	unsigned int hs_trail_m, hs_trail_n;
 
-	if(LCM_DSI_6589_PLL_CLOCK_NULL != lcm_params->dsi.PLL_CLOCK){
+	if((LCM_DSI_6589_PLL_CLOCK_NULL != lcm_params->dsi.PLL_CLOCK) && (lcm_params->dsi.PLL_CLOCK <= LCM_DSI_6589_PLL_CLOCK_520)){
 		div1 = pll_config[lcm_params->dsi.PLL_CLOCK - 1].TXDIV0;
 		div2 = pll_config[lcm_params->dsi.PLL_CLOCK - 1].TXDIV1;
 		fbk_sel = pll_config[lcm_params->dsi.PLL_CLOCK - 1].FBK_SEL;
@@ -2059,11 +2031,9 @@ static unsigned int _dsi_cmd_queue[32];
 #endif
 void DSI_set_cmdq_V2(unsigned cmd, unsigned char count, unsigned char *para_list, unsigned char force_update)
 {
-	UINT32 i, layer, layer_state, lane_num;
+	UINT32 i;
 	UINT32 goto_addr, mask_para, set_para;
-	UINT32 fbPhysAddr, fbVirAddr;
 	DSI_T0_INS t0;	
-	DSI_T1_INS t1;	
 	DSI_T2_INS t2;	
 	if (0 != DSI_REG->DSI_MODE_CTRL.MODE){//not in cmd mode
 		DSI_VM_CMD_CON_REG vm_cmdq;
@@ -2676,11 +2646,11 @@ void DSI_write_lcm_regs(unsigned int addr, unsigned int *para, unsigned int nums
 
 UINT32 DSI_dcs_read_lcm_reg(UINT8 cmd)
 {
-    UINT32 max_try_count = 5;
-    UINT32 recv_data;
-    UINT32 recv_data_cnt;
+//    UINT32 max_try_count = 5;
+    UINT32 recv_data = 0;
+//    UINT32 recv_data_cnt;
     unsigned int read_timeout_ms;
-    unsigned char packet_type;
+//    unsigned char packet_type;
 #if 0
     DSI_T0_INS t0;  
 #if ENABLE_DSI_INTERRUPT
@@ -3083,10 +3053,34 @@ DSI_STATUS DSI_write_lcm_fb(unsigned int addr, bool long_length)
 }
 
 
-DSI_STATUS DSI_read_lcm_fb(void)
+DSI_STATUS DSI_read_lcm_fb(unsigned char *buffer)
 {
-	// TBD
-	return DSI_STATUS_OK;
+   return DSI_STATUS_OK;
+}
+
+unsigned int DSI_Check_LCM(UINT32 color)
+{
+	unsigned int ret = 1;
+	unsigned char buffer[60];
+	if(lcm_drv->ata_check)
+		ret = lcm_drv->ata_check(buffer);
+	return ret;
+}
+
+unsigned int DSI_BLS_Query(void)
+{
+	printk("BLS: 0x%x\n", INREG32(0xF4008000));
+	return ((INREG32(0xF4008000))&(0x1) == 0x1);//if 1, BLS enable
+}
+
+void DSI_BLS_Enable(bool enable)
+{
+	if(enable){
+		MASKREG32(0xF4008000, 0x1, 0x1);
+	}
+	else{
+		MASKREG32(0xF4008000, 0x1, 0x0);
+	}
 }
 
 DSI_STATUS DSI_enable_MIPI_txio(bool en)
@@ -3337,10 +3331,10 @@ DSI_STATUS DSI_Capture_Framebuffer(unsigned int pvbuf, unsigned int bpp, bool cm
         printk("m4u_alloc_mva() fail! \n");
 		return DSI_STATUS_OK;  
 	}
-	printk("addr=0x%x, format=d \n", mva, mem_out.outFormat);
+	printk("addr=0x%x, format=%d \n", mva, mem_out.outFormat);
 
 	m4u_dma_cache_maint(M4U_CLNTMOD_WDMA, 
-		                pvbuf, 
+		                &pvbuf, 
 		                DISP_GetScreenHeight()*DISP_GetScreenWidth()*bpp/8,
 		                DMA_BIDIRECTIONAL);
 	

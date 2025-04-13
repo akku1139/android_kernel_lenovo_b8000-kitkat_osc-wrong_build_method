@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef KPD_HAL_H
 #define KPD_HAL_H
 		  
@@ -39,6 +25,14 @@ void kpd_pmic_rstkey_hal(unsigned long pressed);
 void kpd_pmic_pwrkey_hal(unsigned long pressed);
 void kpd_pwrkey_handler_hal(unsigned long data);
 void mt_eint_register(void);
+
+#ifdef MTK_SMARTBOOK_SUPPORT
+void sb_kpd_enable(void);
+void sb_kpd_disable(void);
+#else
+void sb_kpd_enable(void);
+void sb_kpd_disable(void);
+#endif
 
 #define KPD_NUM_MEMS	5
 #define KPD_MEM5_BITS	8

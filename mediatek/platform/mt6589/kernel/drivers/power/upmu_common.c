@@ -27191,15 +27191,4 @@ void upmu_set_rg_pwd_ncp(U32 val)
   pmic_unlock();
 }
 
-void upmu_set_vio18_lp_sel(kal_uint32 val)
-{
-  kal_uint32 ret=0;
 
-  pmic_lock();
-  ret=pmic_config_interface( (kal_uint32)(DIGLDO_CON49),
-                             (kal_uint32)(val),
-                             (kal_uint32)(PMIC_VIO18_LP_SEL_MASK),
-                             (kal_uint32)(PMIC_VIO18_LP_SEL_SHIFT)
-	                         );
-  pmic_unlock();
-}

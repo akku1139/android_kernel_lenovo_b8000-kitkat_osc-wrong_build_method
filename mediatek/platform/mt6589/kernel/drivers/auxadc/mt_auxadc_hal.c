@@ -286,3 +286,4 @@ int mt_auxadc_dump_register(char *buf)
 		, *(volatile u16 *)AUXADC_CON0,*(volatile u16 *)AUXADC_CON1,*(volatile u16 *)AUXADC_CON2);
 }
 
+

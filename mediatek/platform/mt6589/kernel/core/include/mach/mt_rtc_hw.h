@@ -244,3 +244,4 @@
 #define RTC_CON_LPSTA_RAW	(1U << 15)	/* 32K was stopped */
 
 #endif /* __MT_RTC_HW_H__ */
+

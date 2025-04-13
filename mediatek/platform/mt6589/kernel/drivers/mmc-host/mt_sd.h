@@ -5,6 +5,7 @@
 #include <linux/mmc/host.h>
 #include <mach/sync_write.h>
 #include <mach/mt_reg_base.h>
+#include <linux/semaphore.h>
 #define MAX_GPD_NUM         (1 + 1)  /* one null gpd */
 #define MAX_BD_NUM          (1024)
 #define MAX_BD_PER_GPD      (MAX_BD_NUM)

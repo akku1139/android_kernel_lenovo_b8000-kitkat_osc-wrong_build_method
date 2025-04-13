@@ -70,6 +70,7 @@
 #include <mach/pmic_mt6320_sw.h>
 #include <mach/upmu_common.h>
 #include <mach/upmu_hw.h>
+#include <mach/mt_boot.h>
 
 #include "bq24156.h"
 
@@ -182,6 +183,44 @@ kal_int32 fgauge_get_Q_max_high_current(kal_int16 temperature);
 *  Number of saddles in the battery profile
 *
 *******************************************************************************/
+#ifdef MTK_MULTI_BAT_PROFILE_SUPPORT
+extern int IMM_GetOneChannelValue_Cali(int Channel, int*voltage);
+int fg_battery_id = 0;
+
+void fgauge_get_profile_id(void)
+{
+	int id_volt = 0;
+	int ret = 0;
+	
+	ret = IMM_GetOneChannelValue_Cali(3, &id_volt);
+	if(ret != 0)
+	    printk("[fgauge_get_profile_id]id_volt read fail\n");
+	else
+	    printk("[fgauge_get_profile_id]id_volt = %d\n", id_volt);
+
+  if(id_volt < 500000) // < 0.5V
+      fg_battery_id = 1;
+  else if((id_volt >= 500000) && (id_volt < 1000000))
+  	  fg_battery_id = 2;
+  else
+	    fg_battery_id = 3;
+	  
+	if((fg_battery_id != 1) && (fg_battery_id != 2) && (fg_battery_id != 3))
+	    printk("[fgauge_get_profile_id]Cannot get a valid battery id (%d)!\n", fg_battery_id);
+	else
+	    printk("[fgauge_get_profile_id]Battery id (%d)\n", fg_battery_id);		
+}
+
+int fgauge_get_saddles(void)
+{
+    return sizeof(battery_profile_t2_bat1) / sizeof(BATTERY_PROFILE_STRUC);
+}
+
+int fgauge_get_saddles_r_table(void)
+{
+    return sizeof(r_profile_t2_bat1) / sizeof(R_PROFILE_STRUC);
+}
+#else
 int fgauge_get_saddles(void)
 {
     return sizeof(battery_profile_t2) / sizeof(BATTERY_PROFILE_STRUC);
@@ -191,6 +230,7 @@ int fgauge_get_saddles_r_table(void)
 {
     return sizeof(r_profile_t2) / sizeof(R_PROFILE_STRUC);
 }
+#endif
 
 /*******************************************************************************
 * FUNCTION
@@ -212,6 +252,114 @@ int fgauge_get_saddles_r_table(void)
 *  If the temperature is not valid, then return NULL
 *
 *******************************************************************************/
+
+#ifdef MTK_MULTI_BAT_PROFILE_SUPPORT
+BATTERY_PROFILE_STRUC_P fgauge_get_profile(kal_uint32 temperature)
+{	
+    switch (temperature)
+    {
+        case TEMPERATURE_T0:
+			if(fg_battery_id == 1)
+                return &battery_profile_t0_bat1[0];
+			else if(fg_battery_id == 2)
+                return &battery_profile_t0_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &battery_profile_t0_bat3[0];		
+			else
+				return &battery_profile_t0_bat1[0];
+            break;    
+        case TEMPERATURE_T1:
+			if(fg_battery_id == 1)
+                return &battery_profile_t1_bat1[0];
+			else if(fg_battery_id == 2)
+                return &battery_profile_t1_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &battery_profile_t1_bat3[0];		
+			else
+				return &battery_profile_t1_bat1[0];
+            break;
+        case TEMPERATURE_T2:
+			if(fg_battery_id == 1)
+                return &battery_profile_t2_bat1[0];
+			else if(fg_battery_id == 2)
+                return &battery_profile_t2_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &battery_profile_t2_bat3[0];		
+			else
+				return &battery_profile_t2_bat1[0];
+            break;
+        case TEMPERATURE_T3:
+			if(fg_battery_id == 1)
+                return &battery_profile_t3_bat1[0];
+			else if(fg_battery_id == 2)
+                return &battery_profile_t3_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &battery_profile_t3_bat3[0];		
+			else
+				return &battery_profile_t3_bat1[0];
+            break;
+        case TEMPERATURE_T:
+            return &battery_profile_temperature[0];
+            break;
+        default:
+            return NULL;
+            break;
+    }
+}
+
+R_PROFILE_STRUC_P fgauge_get_profile_r_table(kal_uint32 temperature)
+{	
+    switch (temperature)
+    {
+        case TEMPERATURE_T0:
+			if(fg_battery_id == 1)
+                return &r_profile_t0_bat1[0];
+			else if(fg_battery_id == 2)
+                return &r_profile_t0_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &r_profile_t0_bat3[0];		
+			else
+				return &r_profile_t0_bat1[0];
+            break;
+        case TEMPERATURE_T1:
+			if(fg_battery_id == 1)
+                return &r_profile_t1_bat1[0];
+			else if(fg_battery_id == 2)
+                return &r_profile_t1_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &r_profile_t1_bat3[0];		
+			else
+				return &r_profile_t1_bat1[0];
+            break;
+        case TEMPERATURE_T2:
+			if(fg_battery_id == 1)
+                return &r_profile_t2_bat1[0];
+			else if(fg_battery_id == 2)
+                return &r_profile_t2_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &r_profile_t2_bat3[0];		
+			else
+				return &r_profile_t2_bat1[0];
+            break;
+        case TEMPERATURE_T3:
+			if(fg_battery_id == 1)
+                return &r_profile_t3_bat1[0];
+			else if(fg_battery_id == 2)
+                return &r_profile_t3_bat2[0];				
+			else if(fg_battery_id == 3)
+                return &r_profile_t3_bat3[0];		
+			else
+				return &r_profile_t3_bat1[0];
+            break;
+        case TEMPERATURE_T:
+            return &r_profile_temperature[0];
+            break;
+        default:
+            return NULL;
+            break;
+    }
+}
+#else
 BATTERY_PROFILE_STRUC_P fgauge_get_profile(kal_uint32 temperature)
 {
     switch (temperature)
@@ -261,6 +409,7 @@ R_PROFILE_STRUC_P fgauge_get_profile_r_table(kal_uint32 temperature)
             break;
     }
 }
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 // Global Variable
@@ -2370,9 +2519,12 @@ void fgauge_Normal_Mode_Work(void)
             g_rtc_fg_soc = get_rtc_spare_fg_value();
 			if(g_rtc_fg_soc >= gFG_capacity_by_v)
 			{
-				if( ( g_rtc_fg_soc != 0 					) &&					
+				if( (( g_rtc_fg_soc != 0 					) &&					
 					( (g_rtc_fg_soc-gFG_capacity_by_v) < 30 ) &&
-                ( gFG_capacity_by_v > 5 || upmu_is_chr_det() == KAL_TRUE )                             
+                ( gFG_capacity_by_v > 5 || upmu_is_chr_det() == KAL_TRUE ))
+                    ||
+                    ( (g_rtc_fg_soc != 0) && 
+                     (g_boot_reason == BR_WDT_BY_PASS_PWK || g_boot_reason == BR_WDT || g_boot_mode == RECOVERY_BOOT))
 					)
 				{
 					gFG_capacity_by_v = g_rtc_fg_soc;			 
@@ -2383,9 +2535,12 @@ void fgauge_Normal_Mode_Work(void)
 			}
 			else
 			{
-				if( ( g_rtc_fg_soc != 0 					) &&					
+				if( (( g_rtc_fg_soc != 0 					) &&					
 					( (gFG_capacity_by_v-g_rtc_fg_soc) < 30 ) &&
-                ( gFG_capacity_by_v > 5 || upmu_is_chr_det() == KAL_TRUE )                             
+                ( gFG_capacity_by_v > 5 || upmu_is_chr_det() == KAL_TRUE ))
+                    ||
+                    ( (g_rtc_fg_soc != 0) && 
+                     (g_boot_reason == BR_WDT_BY_PASS_PWK || g_boot_reason == BR_WDT || g_boot_mode == RECOVERY_BOOT))                   
 					)
 				{
 					gFG_capacity_by_v = g_rtc_fg_soc;			 
@@ -2473,6 +2628,183 @@ void fgauge_Normal_Mode_Work(void)
 
 }
 
+#ifdef MTK_MULTI_BAT_PROFILE_SUPPORT
+kal_int32 fgauge_get_Q_max(kal_int16 temperature)
+{
+    kal_int32 ret_Q_max=0;
+    kal_int32 low_temperature = 0, high_temperature = 0;
+    kal_int32 low_Q_max = 0, high_Q_max = 0;
+    int q_max_neg_10, q_max_pos_0, q_max_pos_25, q_max_pos_50;
+	
+    switch(fg_battery_id)
+    {
+        case 1:
+			q_max_neg_10 = Q_MAX_NEG_10_BAT1;
+			q_max_pos_0 = Q_MAX_POS_0_BAT1;
+			q_max_pos_25 = Q_MAX_POS_25_BAT1;
+			q_max_pos_50 = Q_MAX_POS_50_BAT1;
+		    break;
+		case 2:
+			q_max_neg_10 = Q_MAX_NEG_10_BAT2;
+			q_max_pos_0 = Q_MAX_POS_0_BAT2;
+			q_max_pos_25 = Q_MAX_POS_25_BAT2;
+			q_max_pos_50 = Q_MAX_POS_50_BAT2;			
+			break;
+		case 3:
+			q_max_neg_10 = Q_MAX_NEG_10_BAT3;
+			q_max_pos_0 = Q_MAX_POS_0_BAT3;
+			q_max_pos_25 = Q_MAX_POS_25_BAT3;
+			q_max_pos_50 = Q_MAX_POS_50_BAT3;			
+			break;
+		default:
+			q_max_neg_10 = Q_MAX_NEG_10_BAT1;
+			q_max_pos_0 = Q_MAX_POS_0_BAT1;
+			q_max_pos_25 = Q_MAX_POS_25_BAT1;
+			q_max_pos_50 = Q_MAX_POS_50_BAT1;
+			break;
+    }
+
+    if (temperature <= TEMPERATURE_T1)
+    {
+        low_temperature = (-10);
+        low_Q_max = q_max_neg_10;
+        high_temperature = TEMPERATURE_T1;
+        high_Q_max = q_max_pos_0;
+        
+        if(temperature < low_temperature)
+        {
+            temperature = low_temperature;
+        }
+    }
+    else if (temperature <= TEMPERATURE_T2)
+    {
+        low_temperature = TEMPERATURE_T1;
+        low_Q_max = q_max_pos_0;
+        high_temperature = TEMPERATURE_T2;
+        high_Q_max = q_max_pos_25;
+        
+        if(temperature < low_temperature)
+        {
+            temperature = low_temperature;
+        }
+    }
+    else
+    {
+        low_temperature  = TEMPERATURE_T2;
+        low_Q_max = q_max_pos_25;
+        high_temperature = TEMPERATURE_T3;
+        high_Q_max = q_max_pos_50;
+        
+        if(temperature > high_temperature)
+        {
+            temperature = high_temperature;
+        }
+    }
+
+    ret_Q_max = low_Q_max +
+    (
+        (
+            (temperature - low_temperature) * 
+            (high_Q_max - low_Q_max)
+        ) / 
+        (high_temperature - low_temperature)                
+    );
+
+    if (Enable_FGADC_LOG == 1){
+        xlog_printk(ANDROID_LOG_DEBUG, "Power/Battery", "[fgauge_get_Q_max] Q_max = %d\r\n", ret_Q_max);
+    }
+
+    return ret_Q_max;
+}
+
+kal_int32 fgauge_get_Q_max_high_current(kal_int16 temperature)
+{
+    kal_int32 ret_Q_max=0;
+    kal_int32 low_temperature = 0, high_temperature = 0;
+    kal_int32 low_Q_max = 0, high_Q_max = 0;
+    int q_max_neg_10_h_current, q_max_pos_0_h_current, q_max_pos_25_h_current, q_max_pos_50_h_current;
+
+    switch(fg_battery_id)
+    {
+        case 1:
+			q_max_neg_10_h_current = Q_MAX_NEG_10_H_CURRENT_BAT1;
+			q_max_pos_0_h_current = Q_MAX_POS_0_H_CURRENT_BAT1;
+			q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT1;
+			q_max_pos_50_h_current = Q_MAX_POS_50_H_CURRENT_BAT1;
+		    break;
+		case 2:
+			q_max_neg_10_h_current = Q_MAX_NEG_10_H_CURRENT_BAT2;
+			q_max_pos_0_h_current = Q_MAX_POS_0_H_CURRENT_BAT2;
+			q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT2;
+			q_max_pos_50_h_current = Q_MAX_POS_50_H_CURRENT_BAT2;			
+			break;
+		case 3:
+			q_max_neg_10_h_current = Q_MAX_NEG_10_H_CURRENT_BAT3;
+			q_max_pos_0_h_current = Q_MAX_POS_0_H_CURRENT_BAT3;
+			q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT3;
+			q_max_pos_50_h_current = Q_MAX_POS_50_H_CURRENT_BAT3;			
+			break;
+		default:
+			q_max_neg_10_h_current = Q_MAX_NEG_10_H_CURRENT_BAT1;
+			q_max_pos_0_h_current = Q_MAX_POS_0_H_CURRENT_BAT1;
+			q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT1;
+			q_max_pos_50_h_current = Q_MAX_POS_50_H_CURRENT_BAT1;
+			break;
+    }
+
+    if (temperature <= TEMPERATURE_T1)
+    {
+        low_temperature = (-10);
+        low_Q_max = q_max_neg_10_h_current;
+        high_temperature = TEMPERATURE_T1;
+        high_Q_max = q_max_pos_0_h_current;
+        
+        if(temperature < low_temperature)
+        {
+            temperature = low_temperature;
+        }
+    }
+    else if (temperature <= TEMPERATURE_T2)
+    {
+        low_temperature = TEMPERATURE_T1;
+        low_Q_max = q_max_pos_0_h_current;
+        high_temperature = TEMPERATURE_T2;
+        high_Q_max = q_max_pos_25_h_current;
+        
+        if(temperature < low_temperature)
+        {
+            temperature = low_temperature;
+        }
+    }
+    else
+    {
+        low_temperature  = TEMPERATURE_T2;
+        low_Q_max = q_max_pos_25_h_current;
+        high_temperature = TEMPERATURE_T3;
+        high_Q_max = q_max_pos_50_h_current;
+        
+        if(temperature > high_temperature)
+        {
+            temperature = high_temperature;
+        }
+    }
+
+    ret_Q_max = low_Q_max +
+    (
+        (
+            (temperature - low_temperature) * 
+            (high_Q_max - low_Q_max)
+        ) / 
+        (high_temperature - low_temperature)                
+    );
+
+    if (Enable_FGADC_LOG == 1){
+        xlog_printk(ANDROID_LOG_DEBUG, "Power/Battery", "[fgauge_get_Q_max_high_current] Q_max = %d\r\n", ret_Q_max);
+    }
+
+    return ret_Q_max;
+}
+#else
 kal_int32 fgauge_get_Q_max(kal_int16 temperature)
 {
     kal_int32 ret_Q_max=0;
@@ -2590,7 +2922,7 @@ kal_int32 fgauge_get_Q_max_high_current(kal_int16 temperature)
 
     return ret_Q_max;
 }
-
+#endif
 
 /*******************************************************************************
 * FUNCTION
@@ -2610,11 +2942,40 @@ void fgauge_initialization(void)
 {    
     int i = 0;
     kal_uint32 ret=0;
+#ifdef MTK_MULTI_BAT_PROFILE_SUPPORT
+    int q_max_pos_25_h_current, q_max_pos_25;
+	fgauge_get_profile_id();
+
+	switch(fg_battery_id)
+	{
+	    case 1:
+            q_max_pos_25 = Q_MAX_POS_25_BAT1;
+            q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT1;
+			break;
+	    case 2:
+            q_max_pos_25 = Q_MAX_POS_25_BAT2;
+            q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT2;			
+		    break;
+	    case 3:
+            q_max_pos_25 = Q_MAX_POS_25_BAT3;
+            q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT3;						
+		    break;
+	    default:
+            q_max_pos_25 = Q_MAX_POS_25_BAT1;
+            q_max_pos_25_h_current = Q_MAX_POS_25_H_CURRENT_BAT1;			
+		    break;			
+	}
+#endif
 
     get_hw_chip_diff_trim_value();
 
+#ifdef MTK_MULTI_BAT_PROFILE_SUPPORT
+    gFG_BATT_CAPACITY_init_high_current = q_max_pos_25_h_current;	 
+    gFG_BATT_CAPACITY_aging = q_max_pos_25;
+#else
     gFG_BATT_CAPACITY_init_high_current = Q_MAX_POS_25_H_CURRENT;    
     gFG_BATT_CAPACITY_aging = Q_MAX_POS_25;
+#endif
 
 // 1. HW initialization
 //FGADC clock is 32768Hz from RTC

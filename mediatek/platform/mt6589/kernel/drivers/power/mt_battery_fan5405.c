@@ -460,7 +460,7 @@ int g_chr_event = 0;
 int bat_volt_cp_flag = 0;
 int bat_volt_check_point = 0;
 int g_wake_up_bat=0;
-
+int g_smartbook_update = 0;
 void wake_up_bat (void)
 {
     if (Enable_BATDRV_LOG == 1) {
@@ -499,6 +499,10 @@ int g_Support_USBIF = 1;
 #define ADC_CHANNEL_READ _IOW('k', 4, int)
 #define BAT_STATUS_READ _IOW('k', 5, int)
 #define Set_Charger_Current _IOW('k', 6, int)
+//add bing for meta-----------------------------------------
+#define Get_META_BAT_VOL _IOW('k', 10, int) 
+#define Get_META_BAT_SOC _IOW('k', 11, int) 
+//add bing for meta-----------------------------------------
 
 static struct class *adc_cali_class = NULL;
 static int adc_cali_major = 0;
@@ -568,6 +572,11 @@ int init_proc_log(void)
 ////////////////////////////////////////////////////////////////////////////////
 // FOR ANDROID BATTERY SERVICE
 ////////////////////////////////////////////////////////////////////////////////
+/* Dual battery */
+int g_status_2nd = POWER_SUPPLY_STATUS_NOT_CHARGING;
+int g_capacity_2nd = 50;
+int g_present_2nd = 0;
+
 struct mt6320_ac_data {
     struct power_supply psy;
     int AC_ONLINE;    
@@ -596,6 +605,10 @@ struct mt6320_battery_data {
     int BAT_BatterySenseVoltage;
     int BAT_ISenseVoltage;
     int BAT_ChargerVoltage;
+    /* Dual battery */
+    int status_2nd;
+    int capacity_2nd;
+    int present_2nd;
 };
 
 static enum power_supply_property mt6320_ac_props[] = {
@@ -623,6 +636,10 @@ static enum power_supply_property mt6320_battery_props[] = {
     POWER_SUPPLY_PROP_BatterySenseVoltage,
     POWER_SUPPLY_PROP_ISenseVoltage,
     POWER_SUPPLY_PROP_ChargerVoltage,
+    /* Dual battery */
+    POWER_SUPPLY_PROP_status_2nd,
+    POWER_SUPPLY_PROP_capacity_2nd,
+    POWER_SUPPLY_PROP_present_2nd,
 };
 
 static int mt6320_ac_get_property(struct power_supply *psy,
@@ -717,6 +734,16 @@ static int mt6320_battery_get_property(struct power_supply *psy,
     case POWER_SUPPLY_PROP_ChargerVoltage:
         val->intval = data->BAT_ChargerVoltage;
         break;
+    /* Dual battery */
+    case POWER_SUPPLY_PROP_status_2nd :
+        val->intval = data->status_2nd;
+        break;
+    case POWER_SUPPLY_PROP_capacity_2nd :
+        val->intval = data->capacity_2nd;
+        break;
+    case POWER_SUPPLY_PROP_present_2nd :
+        val->intval = data->present_2nd;
+        break;
 
     default:
         ret = -EINVAL;
@@ -769,6 +796,10 @@ static struct mt6320_battery_data mt6320_battery_main = {
     .BAT_CAPACITY = 100,
     .BAT_batt_vol = 4200,
     .BAT_batt_temp = 22,
+    /* Dual battery */
+    .status_2nd = POWER_SUPPLY_STATUS_NOT_CHARGING,
+    .capacity_2nd = 50,
+    .present_2nd = 0,
 #else
     .BAT_STATUS = POWER_SUPPLY_STATUS_NOT_CHARGING,    
     .BAT_HEALTH = POWER_SUPPLY_HEALTH_GOOD,
@@ -777,6 +808,10 @@ static struct mt6320_battery_data mt6320_battery_main = {
     .BAT_CAPACITY = 50,
     .BAT_batt_vol = 0,
     .BAT_batt_temp = 0,
+    /* Dual battery */
+    .status_2nd = POWER_SUPPLY_STATUS_NOT_CHARGING,
+    .capacity_2nd = 50,
+    .present_2nd = 0,
 #endif
 };
 
@@ -1152,6 +1187,11 @@ static void mt6320_battery_update(struct mt6320_battery_data *bat_data)
     bat_data->BAT_ISenseVoltage=g_BAT_ISenseVoltage;
     bat_data->BAT_ChargerVoltage=g_BAT_ChargerVoltage;
 
+    /* Dual battery */
+    bat_data->status_2nd = g_status_2nd;
+    bat_data->capacity_2nd = g_capacity_2nd;
+    bat_data->present_2nd = g_present_2nd;
+	xlog_printk(ANDROID_LOG_INFO, "Power/Battery", "status_2nd = %d, capacity_2nd = %d, present_2nd = %d\n", bat_data->status_2nd, bat_data->capacity_2nd, bat_data->present_2nd);
 	if (gFG_booting_counter_I_FLAG == 2) {
 		if (bat_volt_check_point == 1) {
 			set_rtc_spare_fg_value(0);
@@ -1174,6 +1214,23 @@ static void mt6320_battery_update_power_down(struct mt6320_battery_data *bat_dat
     power_supply_changed(bat_psy);    
 }
 #endif
+
+
+void update_battery_2nd_info(int status_2nd, int capacity_2nd, int present_2nd)
+{
+    #if defined(CONFIG_POWER_VERIFY)
+    xlog_printk(ANDROID_LOG_DEBUG, "Power/Battery", "[update_battery_2nd_info] no support\n");
+    #else
+    g_status_2nd = status_2nd;
+    g_capacity_2nd = capacity_2nd;
+    g_present_2nd = present_2nd;
+    xlog_printk(ANDROID_LOG_INFO, "Power/Battery", "[update_battery_2nd_info] get status_2nd=%d,capacity_2nd=%d,present_2nd=%d\n",
+        status_2nd, capacity_2nd, present_2nd);
+
+    wake_up_bat();
+    g_smartbook_update = 1;
+    #endif
+}
 
 void BAT_UpdateChargerStatus(void)
 {
@@ -3010,6 +3067,8 @@ void mt_battery_notify_check(void)
     }
 }
 
+extern int can_check_battery_flag;
+
 void check_battery_exist(void)
 {
 #if defined(CONFIG_DIS_CHECK_BATTERY)
@@ -3018,24 +3077,26 @@ void check_battery_exist(void)
     }
 #else
     kal_uint32 baton_count = 0;
-
-    baton_count += upmu_get_rgs_baton_undet();
-    baton_count += upmu_get_rgs_baton_undet();
-    baton_count += upmu_get_rgs_baton_undet();
-        
-    if( baton_count >= 3)
+    if (can_check_battery_flag)
     {
-        if( (get_boot_mode()==META_BOOT) || (get_boot_mode()==ADVMETA_BOOT) || (get_boot_mode()==ATE_FACTORY_BOOT) )
-        {
-            printk("[BATTERY] boot mode = %d, bypass battery check\n", get_boot_mode());
-        }
-        else
-        {
-            printk("[BATTERY] Battery is not exist, power off FAN5405 and system (%d)\n", baton_count);
-            pchr_turn_off_charging_fan5405();
-            arch_reset(0,NULL);      
-        }
-    }    
+	    baton_count += upmu_get_rgs_baton_undet();
+	    baton_count += upmu_get_rgs_baton_undet();
+	    baton_count += upmu_get_rgs_baton_undet();
+	        
+	    if( baton_count >= 3)
+	    {
+	        if( (get_boot_mode()==META_BOOT) || (get_boot_mode()==ADVMETA_BOOT) || (get_boot_mode()==ATE_FACTORY_BOOT) )
+	        {
+	            printk("[BATTERY] boot mode = %d, bypass battery check\n", get_boot_mode());
+	        }
+	        else
+	        {
+	            printk("[BATTERY] Battery is not exist, power off FAN5405 and system (%d)\n", baton_count);
+	            pchr_turn_off_charging_fan5405();
+	            arch_reset(0,NULL);      
+	        }
+	    }
+	  }    
 #endif
 }
 void BAT_thread_fan5405(void)
@@ -3435,9 +3496,10 @@ int bat_thread_kthread(void *x)
         
         bat_thread_timeout=0;
 
-        if( g_wake_up_bat==1 )
+        if( g_wake_up_bat==1 && g_smartbook_update != 1)
         {
             g_wake_up_bat=0;
+            g_smartbook_update = 0;
             g_Calibration_FG = 0;
             FGADC_Reset_SW_Parameter();
             
@@ -3612,6 +3674,22 @@ static long adc_cali_ioctl(struct file *file, unsigned int cmd, unsigned long ar
             xlog_printk(ANDROID_LOG_DEBUG, "Power/Battery", "**** unlocked_ioctl : set_Charger_Current:%d\n", charging_level_data[0]);
             break;
           
+		//add bing for meta-------------------------------
+		case Get_META_BAT_VOL:
+			user_data_addr = (int *)arg;
+            ret = copy_from_user(adc_in_data, user_data_addr, 8);
+			adc_out_data[0] = BMT_status.bat_vol;
+			ret = copy_to_user(user_data_addr, adc_out_data, 8); 
+            xlog_printk(ANDROID_LOG_DEBUG, "Power/Battery", "**** unlocked_ioctl : BAT_VOL:%d\n", adc_out_data[0]);   
+			break;
+		case Get_META_BAT_SOC:
+			user_data_addr = (int *)arg;
+            ret = copy_from_user(adc_in_data, user_data_addr, 8);
+			adc_out_data[0] = bat_volt_check_point;
+			ret = copy_to_user(user_data_addr, adc_out_data, 8); 
+            xlog_printk(ANDROID_LOG_DEBUG, "Power/Battery", "**** unlocked_ioctl : SOC:%d\n", adc_out_data[0]);   
+			break;
+		//add bing for meta-------------------------------
         default:
             g_ADC_Cali = KAL_FALSE;
             break;

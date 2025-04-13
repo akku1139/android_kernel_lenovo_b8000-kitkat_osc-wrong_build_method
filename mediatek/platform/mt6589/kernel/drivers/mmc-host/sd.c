@@ -71,6 +71,15 @@
 #define MTK_EMMC_ETT_TO_DRIVER  /* for eMMC off-line apply to driver */
 #endif
 
+#ifdef SLT_DEVINFO_EMCP
+#define DEVINFO_DEBUG_EMCP 0
+static int devinfo_register_emcp(struct msdc_host *host);
+static int rom_size = 0;
+#endif
+unsigned long long msdc_print_start_time;
+unsigned long long msdc_print_end_time;
+unsigned int print_nums;
+
 #define UNSTUFF_BITS(resp,start,size)					\
 	({								\
 		const int __size = size;				\
@@ -773,7 +782,7 @@ EXPORT_SYMBOL(msdc_get_dma_status);
 struct dma_addr* msdc_get_dma_address(int host_id)
 {
    bd_t* bd; 
-   int i;
+   int i = 0;
    int mode = -1;
    struct msdc_host *host;
    u32 base;
@@ -1609,9 +1618,14 @@ static void msdc_eirq_sdio(void *data)
 {
     struct msdc_host *host = (struct msdc_host *)data;
 
-		N_MSG(INT, "SDIO EINT");
-				
-    mmc_signal_sdio_irq(host->mmc);
+	N_MSG(INT, "SDIO EINT");
+#ifdef SDIO_ERROR_BYPASS 
+    if(host->sdio_error != -EIO){ 	
+#endif      
+        mmc_signal_sdio_irq(host->mmc);
+#ifdef SDIO_ERROR_BYPASS 
+    } 
+#endif    
 }
 
 /* msdc_eirq_cd will not be used!  We not using EINT for card detection. */
@@ -1921,7 +1935,7 @@ static u32 msdc_power_tuning(struct msdc_host *host)
 }
 
 
-void msdc_send_stop(struct msdc_host *host)
+static void msdc_send_stop(struct msdc_host *host)
 {
     struct mmc_command stop = {0};    
     struct mmc_request mrq = {0};
@@ -2309,7 +2323,7 @@ static void msdc_pin_config(struct msdc_host *host, int mode)
         mode, MSDC_PIN_PULL_DOWN, MSDC_PIN_PULL_UP);
 }
 
-void msdc_pin_reset(struct msdc_host *host, int mode)
+static void msdc_pin_reset(struct msdc_host *host, int mode)
 {
     struct msdc_hw *hw = (struct msdc_hw *)host->hw;
     u32 base = host->base;
@@ -2758,7 +2772,6 @@ static void msdc_pm(pm_message_t state, void *data)
 			msdc_pin_reset (host, MSDC_PIN_PULL_UP);
 			msdc_pin_config(host, MSDC_PIN_PULL_UP);
 			host->power_control(host,1);
-			mdelay(10);
 			msdc_restore_emmc_setting(host);
 		}
             (void)mmc_resume_host(host->mmc);
@@ -2937,10 +2950,31 @@ u64 msdc_get_capacity(int get_emmc_total)
    u64 user_size = 0;
    u32 other_size = 0;
    u64 total_size = 0;
+   #ifdef SLT_DEVINFO_EMCP
+   static char first_register=0;
+   #endif
    int index = 0;
 	for(index = 0;index < HOST_MAX_NUM;++index){
 		if((mtk_msdc_host[index] != NULL) && (mtk_msdc_host[index]->hw->boot)){
 		  	user_size = msdc_get_user_capacity(mtk_msdc_host[index]);
+		  	#ifdef SLT_DEVINFO_EMCP
+			if((index==0)&&(first_register==0))
+			{
+				if(mtk_msdc_host[index]->mmc->card->type==MMC_TYPE_MMC)
+				{
+					rom_size=user_size/1024/1024;
+					#ifdef DEVINFO_DEBUG_EMCP
+				        printk("[DEVINFO_EMCP]msdc <%x>\n",mtk_msdc_host[index]->mmc->card->type); 
+				        printk("[DEVINFO_EMCP]msdc <%x><%x><%x><%x>\n",mtk_msdc_host[index]->mmc->card->raw_cid[0],mtk_msdc_host[index]->mmc->card->raw_cid[1],mtk_msdc_host[index]->mmc->card->raw_cid[2],mtk_msdc_host[index]->mmc->card->raw_cid[3]); 
+				        printk("[DEVINFO_EMCP]msdc size <%x>\n",rom_size); 
+					#endif		
+					devinfo_register_emcp(mtk_msdc_host[index]);
+					first_register=1;	
+				}
+				else
+				printk("[DEVINFO_EMCP]msdc Not fit!\n"); 
+			}
+			#endif
 			#ifdef MTK_EMMC_SUPPORT
 			if(get_emmc_total){
 		  		if(mmc_card_mmc(mtk_msdc_host[index]->mmc->card))
@@ -2956,6 +2990,7 @@ u64 msdc_get_capacity(int get_emmc_total)
 EXPORT_SYMBOL(msdc_get_capacity);
 u32 erase_start = 0;
 u32 erase_end = 0;
+u32 erase_bypass = 0;
 extern 	int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,unsigned int nr);
 /*--------------------------------------------------------------------------*/
 /* mmc_host_ops members                                                      */
@@ -3109,23 +3144,29 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 			if(cmd->opcode == MMC_ERASE_GROUP_END)
 				erase_end = rawarg;
         }	
-		if(cmd->opcode == MMC_ERASE
-			&& (cmd->arg == MMC_SECURE_ERASE_ARG || cmd->arg == MMC_ERASE_ARG)
-			&& host->mmc->card 
-			&& host->hw->host_function == MSDC_EMMC 
-			&& host->hw->boot == MSDC_BOOT_EN
-			&& (!mmc_erase_group_aligned(host->mmc->card,erase_start,erase_end))){
-				if(cmd->arg == MMC_SECURE_ERASE_ARG && mmc_can_secure_erase_trim(host->mmc->card))
-			  		rawarg = MMC_SECURE_TRIM1_ARG;
-				else if(cmd->arg == MMC_ERASE_ARG 
-				   ||(cmd->arg == MMC_SECURE_ERASE_ARG && !mmc_can_secure_erase_trim(host->mmc->card)))
-					rawarg = MMC_TRIM_ARG;
-			}
+		if(cmd->opcode == MMC_ERASE                                          && 
+         (cmd->arg == MMC_SECURE_ERASE_ARG || cmd->arg == MMC_ERASE_ARG) && 
+           host->mmc->card                                               && 
+           host->hw->host_function == MSDC_EMMC                          &&
+           host->hw->boot == MSDC_BOOT_EN                                && 
+           (!mmc_erase_group_aligned(host->mmc->card, erase_start, erase_end - erase_start + 1))){
+        if(mmc_can_trim(host->mmc->card)){
+            if(cmd->arg == MMC_SECURE_ERASE_ARG && mmc_can_secure_erase_trim(host->mmc->card))
+                rawarg = MMC_SECURE_TRIM1_ARG;
+            else if(cmd->arg == MMC_ERASE_ARG ||(cmd->arg == MMC_SECURE_ERASE_ARG && !mmc_can_secure_erase_trim(host->mmc->card)))
+                rawarg = MMC_TRIM_ARG;
+        }else {
+            erase_bypass = 1; 
+            ERR_MSG("cancel format,cmd<%d> arg=0x%x, start=0x%x, end=0x%x, size=%d, erase_bypass=%d", 
+                    cmd->opcode, rawarg, erase_start, erase_end, (erase_end - erase_start + 1), erase_bypass); 
+            goto end; 
+        }
+    }
 #endif
 	
     sdc_send_cmd(rawcmd, rawarg);        
       
-//end:    	
+end:    	
     return 0;  // irq too fast, then cmd->error has value, and don't call msdc_command_resp, don't tune. 
 }
 
@@ -3139,9 +3180,14 @@ static unsigned int msdc_command_resp_polling(struct msdc_host   *host,
     u32 resp;
     //u32 status;
     unsigned long tmo;
-    //struct mmc_data   *data = host->data;
-    
+    //struct mmc_data   *data = host->data;    
     u32 cmdsts = MSDC_INT_CMDRDY  | MSDC_INT_RSPCRCERR  | MSDC_INT_CMDTMO;     
+    
+    if(erase_bypass && (cmd->opcode == MMC_ERASE)){
+        erase_bypass = 0; 
+        ERR_MSG("bypass cmd<%d>, erase_bypass=%d", cmd->opcode, erase_bypass); 
+        goto out; 
+    }
     
     resp = host->cmd_rsp;
 
@@ -3467,16 +3513,24 @@ static void msdc_dma_stop(struct msdc_host *host)
     u32 base = host->base;
 	int retry = 30;
 	int count = 1000;
+    int sdio_retry = 1, i;
     //u32 retries=500;
     u32 wints = MSDC_INTEN_XFER_COMPL | MSDC_INTEN_DATTMO | MSDC_INTEN_DATCRCERR ; 
     if(host->autocmd == MSDC_AUTOCMD12)
 		wints |= MSDC_INT_ACMDCRCERR | MSDC_INT_ACMDTMO | MSDC_INT_ACMDRDY; 
     N_MSG(DMA, "DMA status: 0x%.8x",sdr_read32(MSDC_DMA_CFG));
     //while (sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS);
-
-    sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_STOP, 1);
-    //while (sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS);
-    msdc_retry((sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS),retry,count,host->id);
+    
+    if(host->hw->host_function == MSDC_SDIO)
+        sdio_retry = 10;
+    for(i=0; i<sdio_retry; i++){
+        sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_STOP, 1);
+        //while (sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS);
+        msdc_retry((sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS),retry,count,host->id);
+        if(retry > 0)
+            break;
+        printk(KERN_ERR "dma_stop error[%d]", i);
+    }
 	if(retry == 0){
 		ERR_MSG("!!ASSERT!!");
 		BUG();
@@ -4017,7 +4071,14 @@ done:
     if (mrq->stop && (mrq->stop->error == (unsigned int)-EIO)) host->error |= REQ_STOP_EIO; 
 	if (mrq->stop && (mrq->stop->error == (unsigned int)-ETIMEDOUT)) host->error |= REQ_STOP_TMO; 
     //if (host->error) ERR_MSG("host->error<%d>", host->error);     
-	
+#ifdef SDIO_ERROR_BYPASS  
+    if(is_card_sdio(host) && !host->error){
+        host->sdio_error = 0; 
+        memset(&host->sdio_error_rec.cmd, 0, sizeof(struct mmc_command));  
+        memset(&host->sdio_error_rec.data, 0, sizeof(struct mmc_data));
+        memset(&host->sdio_error_rec.stop, 0, sizeof(struct mmc_command));
+    }	
+#endif
     return host->error;
 }
 static int msdc_tune_rw_request(struct mmc_host*mmc, struct mmc_request*mrq)
@@ -4372,7 +4433,7 @@ done:
 	spin_unlock(&host->lock);
     return host->error;
 }
-
+#if 0
 #ifdef MTK_EMMC_SUPPORT
 //need debug the interface for kernel panic
 static unsigned int msdc_command_start_simple(struct msdc_host   *host, 
@@ -4762,7 +4823,7 @@ done:
     return host->error;
 }
 #endif
-
+#endif
 static int msdc_app_cmd(struct mmc_host *mmc, struct msdc_host *host)
 {
     struct mmc_command cmd = {0};    
@@ -5343,6 +5404,8 @@ static void msdc_ops_request_legacy(struct mmc_host *mmc, struct mmc_request *mr
     struct msdc_host *host = mmc_priv(mmc);
     struct mmc_command *cmd;    
     struct mmc_data *data;
+    struct mmc_command err_cmd;
+    struct mmc_data err_data;
     struct mmc_command *stop = NULL;
 	int data_abort = 0;
 	int got_polarity = 0;
@@ -5377,15 +5440,16 @@ static void msdc_ops_request_legacy(struct mmc_host *mmc, struct mmc_request *mr
     if (mrq->cmd->opcode == 53 && host->sdio_error == -EIO){    // sdio error bypass
         if((sdio_error_count++)%SDIO_ERROR_OUT_INTERVAL == 0){  
             if(host->sdio_error_rec.cmd.opcode == 53){
-                cmd = &host->sdio_error_rec.cmd;        
-                data = &host->sdio_error_rec.data;
-                if(!data->error)
-                    data = NULL;
-                if (data) stop = &host->sdio_error_rec.stop;
-                    msdc_dump_trans_error(host, cmd, data, stop); 
-                goto sdio_error_out;    
+                 spin_lock(&host->lock);
+                err_cmd = host->sdio_error_rec.cmd;
+                err_data = host->sdio_error_rec.data;
+                ERR_MSG("[BYPS]XXX CMD<%d><0x%x> Error<%d> Resp<0x%x>", err_cmd.opcode, err_cmd.arg, err_cmd.error, err_cmd.resp[0]); 
+                if(err_data.error)
+                    ERR_MSG("[BYPS]XXX DAT block<%d> Error<%d>", err_data.blocks, err_data.error);
+                spin_unlock(&host->lock);        
             }
        }
+       goto sdio_error_out;  
     }
 #endif
         
@@ -5469,6 +5533,10 @@ static void msdc_ops_request_legacy(struct mmc_host *mmc, struct mmc_request *mr
 			else
 				goto out;
         } 
+
+        if ( cmd->error == (unsigned int)-ENOMEDIUM ) {
+            goto out;
+        }
 
         // [ALPS114710] Patch for data timeout issue.
         if (data && (data->error == (unsigned int)-ETIMEDOUT)) {  
@@ -5713,6 +5781,10 @@ static void msdc_tune_async_request(struct mmc_host *mmc, struct mmc_request *mr
 			else
 				goto out;
         } 
+
+        if ( cmd->error == (unsigned int)-ENOMEDIUM ) {
+            goto out;
+        }
 
         // [ALPS114710] Patch for data timeout issue.
         if (data && (data->error == (unsigned int)-ETIMEDOUT)) {  
@@ -6123,7 +6195,7 @@ static void msdc_ops_enable_sdio_irq(struct mmc_host *mmc, int enable)
         sdr_write32(SDC_CFG, tmp);      
     }
 }
-int msdc_ops_switch_volt(struct mmc_host *mmc, struct mmc_ios *ios)
+static int msdc_ops_switch_volt(struct mmc_host *mmc, struct mmc_ios *ios)
 {
     struct msdc_host *host = mmc_priv(mmc);
     u32 base = host->base;
@@ -6897,47 +6969,6 @@ done:
 
 
 
-#if defined(MTK_EMMC_SUPPORT)
-#include <linux/syscalls.h>
-
-void emmc_create_sys_symlink (struct mmc_card *card)
-{
-	int i = 0;
-	struct disk_part_iter piter;
-	struct hd_struct *part;
-	struct msdc_host *host;
-	struct gendisk *disk;
-	char link_target[256];
-	char link_name[256];
-
-    /* emmc always in slot0 */
-	host = msdc_get_host(MSDC_EMMC,MSDC_BOOT_EN,0);
-	BUG_ON(!host);
-
-	if (host != (struct msdc_host *)card->host->private) {
-            printk(KERN_INFO DRV_NAME "%s: NOT emmc card,  \n", __func__);
-		return;
-	}
-	
-	disk = mmc_get_disk(card);
-	
-	disk_part_iter_init(&piter, disk, 0);
-	while ((part = disk_part_iter_next(&piter))){
-	  for (i = 0; i < PART_NUM; i++) {
-		if (PartInfo[i].partition_idx != 0 && PartInfo[i].partition_idx == part->partno) {
-			sprintf(link_target, "/dev/block/%sp%d", disk->disk_name, part->partno);
-			sprintf(link_name, "/emmc@%s", PartInfo[i].name);
-			printk(KERN_INFO DRV_NAME "%s: target=%s, name=%s  \n", __func__, link_target, link_name);
-			sys_symlink(link_target, link_name);
-			break;
-	    }
-      }			
-	}
-	disk_part_iter_exit(&piter);
-
-}
-
-#endif /* MTK_EMMC_SUPPORT */
 
 /* This is called by run_timer_softirq */
 static void msdc_timer_pm(unsigned long data)
@@ -6953,6 +6984,241 @@ static void msdc_timer_pm(unsigned long data)
     spin_unlock_irqrestore(&host->clk_gate_lock, flags); 
 }
 
+//////////////////////////
+#ifdef SLT_DEVINFO_EMCP
+#include  <linux/dev_info.h>
+#include "../sltdevinfo/devinfo_emi.h"
+
+static int devinfo_register_emcp(struct msdc_host *host)
+{	
+	int i=0;
+	char* type;
+	char* module;
+	char* vendor;
+	char *ic;
+	char *version;
+	char *info=kmalloc(64,GFP_KERNEL);	//RAM SIZE
+	char *info1=kmalloc(64,GFP_KERNEL);	//RAM SIZE
+	unsigned long ram_size;
+#ifdef SLT_DEVINFO_DISRAM_BY_RTC
+	u16 ram_manuid=0;
+extern u16 hal_rtc_get_register_status(const char * cmd);
+#endif
+#ifdef DEVINFO_DEBUG_EMCP
+    printk("[DEVINFO_EMCP][%s]: register emcp info.[%d]\n", __func__,num_of_emi_records);
+    printk("[DEVINFO_EMCP][%s]: register emcp info.[%4x]\n", __func__,host->mmc->card->type);
+    printk("[DEVINFO_EMCP]: emcp device info.[%x][%x][%x][%x]\n",host->mmc->card->raw_cid[0],host->mmc->card->raw_cid[1],host->mmc->card->raw_cid[2],host->mmc->card->raw_cid[3]);
+#endif
+
+	for(i=0;i<num_of_emi_records;i++)
+	{
+#ifdef DEVINFO_DEBUG_EMCP
+    printk("[DEVINFO_EMCP]: emcp list info.[%x][%x][%x][%x]\n",emi_settings[i].ID[0],emi_settings[i].ID[1],emi_settings[i].ID[2],emi_settings[i].ID[3]);
+#endif
+		//DEIVE TYPE
+		//switch (host->mmc->card->type)
+		//Note: In fact,we cannot get right device type here from host->mmc->card->type,So we have to define a knowned value
+		switch (emi_settings[i].type)
+			{
+				case 0x0000:
+					type=	DEVINFO_NULL;
+					break;
+				case 0x0001:
+					type=	"RAM DDR1";
+					break;
+				case 0x0002:
+					type=	"RAM DDR2";
+					break;
+				case 0x0003:
+					type=	"RAM DDR3";
+					break;
+				case 0x0101:
+					type=	"MCP(NAND+DDR1)";
+					break;
+				case 0x0102:
+					type=	"MCP(NAND+DDR2)";
+					break;
+				case 0x0103:
+					type=	"MCP(NAND+DDR3)";
+					break;
+				case 0x0201:
+					type=	"MCP(eMMC+DDR1)";
+					break;
+				case 0x0202:
+					type=	"MCP(eMMC+DDR2)";
+					break;
+				case 0x0203:
+					type=	"MCP(eMMC+DDR3)";
+					break;
+				default:
+					type=	DEVINFO_NULL;
+					break;
+			}
+		//type = "RAM DDR2      "";
+		
+		//device module
+		module=	emi_settings[i].DEVINFO_MCP;
+		#ifdef DEVINFO_DEBUG_EMCP
+    	printk("[DEVINFO_EMCP]: device type:%s!\n",type);
+    	printk("[DEVINFO_EMCP]: device module:%s!\n",module);
+		#endif
+
+		//device vendor,eMMC PART
+		//switch(emi_settings[i].ID[0])
+		//For dist ddr,it is NULL in emi_setting.ID[n],we`d better get it from what we have got
+		switch((host->mmc->card->raw_cid[0]&0xFF000000)>>24)	
+		{
+			case 0x11:
+				vendor=	"Toshiba   ";
+				break;
+			case 0x15:
+				vendor=	"Samsung   ";
+				break;
+			case 0x90:
+				vendor=	"Hynix     ";
+				break;
+			case 0x45:
+				vendor=	"Sandisk   ";
+				break;
+			case 0x70:
+				vendor=	"Kingston  ";
+				break;
+			defalut:
+				vendor=	DEVINFO_NULL;
+			break;
+		}
+	
+		#ifdef DEVINFO_DEBUG_EMCP
+    	printk("[DEVINFO_EMCP]: device vendor:%s!\n",vendor);
+		#endif
+		//device ic
+		//same as module
+		ic = module;
+
+		#ifdef DEVINFO_DEBUG_EMCP
+    	printk("[DEVINFO_EMCP]: device ic:%s!\n",ic);
+		#endif
+		//device version
+		//NULL
+
+		//device RAM size ,we can not get ROM size here
+		ram_size=(unsigned long)((	emi_settings[i].DRAM_RANK_SIZE[0]/1024	+ emi_settings[i].DRAM_RANK_SIZE[1]/1024	+ emi_settings[i].DRAM_RANK_SIZE[2]/1024	+ emi_settings[i].DRAM_RANK_SIZE[3]/1024)/(1024)); 
+		#ifdef DEVINFO_DEBUG_EMCP
+    	printk("[DEVINFO_EMCP]: Device info:<%x> <%x><%x><%x><%d><%d>\n",emi_settings[i].DRAM_RANK_SIZE[0],emi_settings[i].DRAM_RANK_SIZE[1],emi_settings[i].DRAM_RANK_SIZE[2],emi_settings[i].DRAM_RANK_SIZE[3],rom_size,ram_size);
+		#endif
+		
+
+  		//DEVINFO_ITOA(ram_size,info);
+		//sprintf(info,"ram: %s + rom: %s MB",ram_size,rom_size);
+		//info= "(null)";
+	//	sprintf(info,"ram:%dMB",ram_size);
+
+		if(emi_settings[i].type < 0x0100)//Add for dis DDR type
+		{
+
+#ifdef SLT_DEVINFO_DISRAM_BY_RTC
+			ram_manuid = hal_rtc_get_register_status("MANUID");
+			//printk("[DEVINFO][EMCP]ram_manuid:%x,type:%x\n",ram_manuid,emi_settings[i].type);
+			if(emi_settings[i].type=0x0002)//DDR2
+			{
+				if(ram_manuid == emi_settings[i].LPDDR2_MODE_REG_5)
+				{
+					sprintf(info,"ram:%dMB",ram_size);
+					DEVINFO_DECLARE(type,module,"unknown",ic,version,info,DEVINFO_USED);	
+				}else{
+					sprintf(info,"ram:%dMB","unknown");
+					DEVINFO_DECLARE(type,module,"unknown",ic,version,info,DEVINFO_UNUSED);	
+				}
+			}else{
+				if(ram_manuid == emi_settings[i].LPDDR3_MODE_REG_5)
+				{
+					sprintf(info,"ram:%dMB",ram_size);
+					DEVINFO_DECLARE(type,module,"unknown",ic,version,info,DEVINFO_USED);	
+				}else{
+					sprintf(info,"ram:%dMB","unknown");
+					DEVINFO_DECLARE(type,module,"unknown",ic,version,info,DEVINFO_UNUSED);	
+				}	
+			}
+#else
+					sprintf(info,"ram:%dMB",ram_size);
+					DEVINFO_DECLARE(type,module,"unknown",ic,version,info,DEVINFO_USED);	
+
+#endif
+//NOTE:
+//we just reg what we found
+			sprintf(info1,"rom:%dMB",rom_size);
+			DEVINFO_DECLARE("eMMC","unknown",vendor,"unknown",version,info1,DEVINFO_USED);	//we can not judge  used or not
+		}
+		else{
+		//Check if used on this board
+		if((emi_settings[i].ID[0]==(host->mmc->card->raw_cid[0]&0xFF000000)>>24) && (emi_settings[i].ID[1]==(host->mmc->card->raw_cid[0]&0x00FF0000)>>16) && (emi_settings[i].ID[2]==(host->mmc->card->raw_cid[0]&0x0000FF00)>>8) && (emi_settings[i].ID[3]==(host->mmc->card->raw_cid[0]&0x000000FF)>>0)
+				//shaohui add the code to enhance ability of detecting more devices,for same seriers products
+			&&	(emi_settings[i].ID[4]==(host->mmc->card->raw_cid[1]&0xFF000000)>>24) && (emi_settings[i].ID[5]==(host->mmc->card->raw_cid[1]&0x00FF0000)>>16) && (emi_settings[i].ID[6]==(host->mmc->card->raw_cid[1]&0x0000FF00)>>8)
+				)
+		{
+		//sprintf(info,"ram:%dMB",ram_size);
+			switch(ram_size)
+			{
+				case 2048:
+					sprintf(info,"ram:2048MB+rom:%dMB",rom_size);
+					break;
+				case 1536:
+					sprintf(info,"ram:1536MB+rom:%dMB",rom_size);
+					break;
+				case 1024:
+					sprintf(info,"ram:1024MB+rom:%dMB",rom_size);
+					break;
+				case 768:
+					sprintf(info,"ram:768 MB+rom:%dMB",rom_size);
+					break;
+				case 512:
+					sprintf(info,"ram:512 MB+rom:%dMB",rom_size);
+					break;
+				default:
+					sprintf(info,"ram:512 MB+rom:%dMB",rom_size);
+					break;
+			}
+
+
+			#ifdef DEVINFO_DEBUG_EMCP
+    		printk("[DEVINFO_EMCP]: Get right device!\n");
+    		printk("[DEVINFO_EMCP]: Device info:%s \n",info);
+			#endif
+ 		//void devinfo_declare(char* type,char* module,char* vendor,char* ic,char* version,char* info,int used)
+		DEVINFO_DECLARE(type,module,vendor,ic,version,info,DEVINFO_USED );	//used device regist
+		}else{
+			switch(ram_size)
+			{
+				case 2048:
+					info="ram:2048MB+rom:null";
+					break;
+				case 1536:
+					info="ram:1536MB+rom:null";
+					break;
+				case 1024:
+					info="ram:1024MB+rom:null";
+					break;
+				case 768:
+					info="ram:768 MB+rom:null";
+					break;
+				case 512:
+					info="ram:512 MB+rom:null";
+					break;
+				default:
+					info="ram:512 MB+rom:null";
+					break;
+			}
+
+	//sprintf(info,"ram:%dMB",ram_size);
+		DEVINFO_DECLARE(type,module,vendor,ic,version,info,DEVINFO_UNUSED );	//unused device regist
+		}
+		}
+	}	   
+
+	return 0;
+}
+#endif
+//////////////////////////
 static u32 first_probe = 0; 
 #ifndef FPGA_PLATFORM
 static void msdc_set_host_power_control(struct msdc_host *host)
@@ -7089,7 +7355,7 @@ static void msdc_register_emi_mpu_callback(int id)
 
 #ifdef CONFIG_MTK_HIBERNATION
 extern unsigned int mt_eint_get_polarity(unsigned int eint_num);
-int msdc_drv_pm_restore_noirq(struct device *device)
+static int msdc_drv_pm_restore_noirq(struct device *device)
 {
     struct platform_device *pdev = to_platform_device(device);
 	struct mmc_host *mmc = NULL;
@@ -7458,6 +7724,11 @@ static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
 
     if (is_card_sdio(host)) 
     {
+        if(host->clk_gate_count > 0){
+            host->error = 0;
+            return -EBUSY;
+        }
+        
         if (host->saved_para.suspend_flag==0)
         {
             host->saved_para.hz = host->mclk;

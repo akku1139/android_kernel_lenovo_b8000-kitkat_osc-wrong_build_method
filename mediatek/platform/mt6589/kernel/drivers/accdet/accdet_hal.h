@@ -35,7 +35,7 @@
 #include <mach/mt_typedefs.h>
 #include <mach/mt_reg_base.h>
 #include <mach/irqs.h>
-//#include <accdet_custom_def.h>
+#include <accdet_custom_def.h>
 #include <accdet_custom.h>
 #include <mach/reg_accdet.h>
 
@@ -58,3 +58,11 @@ int accdet_get_pin_reg_state(void);
 int mt_accdet_probe(void);
 int accdet_get_cable_type(void);
 struct file_operations *accdet_ops(void);
+
+
+
+
+
+
+
+

@@ -17,3 +17,4 @@ extern void mt_auxadc_hal_resume(void);
 extern int mt_auxadc_dump_register(char *buf);
 
 #endif   /*_MTK_ADC_SW_H*/
+

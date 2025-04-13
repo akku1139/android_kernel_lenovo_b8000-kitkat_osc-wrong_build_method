@@ -30,6 +30,7 @@
 #define SEC_BOOT_NOTIFY_PASS            _IOR(SEC_IOC_MAGIC, 13, unsigned int)
 #define SEC_BOOT_NOTIFY_FAIL            _IOR(SEC_IOC_MAGIC, 14, unsigned int)
 #define SEC_BOOT_NOTIFY_RMSDUP_DONE     _IOR(SEC_IOC_MAGIC, 15, unsigned int)
+#define SEC_BOOT_NOTIFY_STATUS          _IOR(SEC_IOC_MAGIC, 19, unsigned int)
 
 /* rom info */
 #define SEC_READ_ROM_INFO               _IOR(SEC_IOC_MAGIC, 16, unsigned int)
@@ -38,7 +39,11 @@
 #define SEC_NVRAM_HW_ENCRYPT            _IOR(SEC_IOC_MAGIC, 17, unsigned int)
 #define SEC_NVRAM_HW_DECRYPT            _IOR(SEC_IOC_MAGIC, 18, unsigned int)
 
-#define SEC_IOC_MAXNR       (19)
+/* HEVC */
+#define SEC_HEVC_EOP                    _IOR(SEC_IOC_MAGIC, 20, unsigned int)
+#define SEC_HEVC_DOP                    _IOR(SEC_IOC_MAGIC, 21, unsigned int)
+
+#define SEC_IOC_MAXNR       (22)
 
 #define SEC_DEV             "/dev/sec"
 

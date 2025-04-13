@@ -10,6 +10,7 @@
 #include "ddp_debug.h"
 
 #include <cust_leds.h>
+#include <cust_leds_def.h>
 
 #define POLLING_TIME_OUT 1000
 

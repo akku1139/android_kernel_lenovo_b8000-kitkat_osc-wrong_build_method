@@ -13,3 +13,4 @@
 #define AUXADC_TP_DATA0          (AUXADC_BASE + 0x0074)
 
 #endif   /*_MTK_ADC_HW_H*/
+

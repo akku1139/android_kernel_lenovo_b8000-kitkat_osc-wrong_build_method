@@ -2003,6 +2003,4 @@ extern void upmu_set_rg_pwd_ncp(U32 val);
 
 extern kal_uint32 upmu_get_reg_value(kal_uint32 reg);
 
-extern void upmu_set_vio18_lp_sel(kal_uint32 val);
-extern void upmu_set_vio28_lp_sel(kal_uint32 val);
 #endif // _MT6320_PMIC_COMMON_H_
