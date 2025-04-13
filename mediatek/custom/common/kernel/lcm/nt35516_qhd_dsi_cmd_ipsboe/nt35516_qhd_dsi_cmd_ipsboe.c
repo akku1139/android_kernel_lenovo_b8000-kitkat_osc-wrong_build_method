@@ -89,7 +89,7 @@ static void push_table(struct LCM_setting_table *table, unsigned int count, unsi
     }
 	
 }
-
+#if 0
 static struct LCM_setting_table lcm_sleep_out_setting[] = {
     // Sleep Out
 	{0x11, 1, {0x00}},
@@ -99,7 +99,7 @@ static struct LCM_setting_table lcm_sleep_out_setting[] = {
 	{0x29, 1, {0x00}},
 	{REGFLAG_END_OF_TABLE, 0x00, {}}
 };
-
+#endif
 static struct LCM_setting_table lcm_sleep_in_setting[] = {
 	// Display off sequence
 	{0x28, 1, {0x00}},
@@ -302,7 +302,7 @@ static void lcm_get_params(LCM_PARAMS *params)
 		params->dsi.data_format.format      = LCM_DSI_FORMAT_RGB888;
 
 		params->dsi.PS=LCM_PACKED_PS_24BIT_RGB888;
-		params->dsi.pll_select=1;	//0: MIPI_PLL; 1: LVDS_PLL
+//		params->dsi.pll_select=1;	//0: MIPI_PLL; 1: LVDS_PLL
 		params->dsi.PLL_CLOCK = LCM_DSI_6589_PLL_CLOCK_221;//this value must be in MTK suggested table
 											//if not config this para, must config other 7 or 3 paras to gen. PLL
 
@@ -708,7 +708,7 @@ static void init_lcm_registers(void)
 static unsigned int lcm_check_status(void)
 {
 	unsigned char buffer[2];
-	int   array[4];
+	unsigned int array[4];
 //	unsigned int i = 0;
 	
 	array[0] = 0x00013700;// read id return two byte,version and id
@@ -847,9 +847,9 @@ static void lcm_update(unsigned int x, unsigned int y,
 }
 static unsigned int lcm_compare_id(void)
 {
-
-		int   array[4];
-		char  buffer[3];
+#if 0
+		unsigned int   array[4];
+		unsigned char  buffer[3];
 		char  id0=0;
 		char  id1=0;
 		char  id2=0;
@@ -868,7 +868,7 @@ static unsigned int lcm_compare_id(void)
 	id0 = buffer[0]; //should be 0x00
 	id1 = buffer[1];//should be 0x80
 	id2 = buffer[2];//should be 0x00
-	
+#endif
 	return 0;
 
 

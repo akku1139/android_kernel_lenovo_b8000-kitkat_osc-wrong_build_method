@@ -24,6 +24,10 @@
  * $Modtime:$
  * $Log:$
  *
+ * 04 12 2013 guoqing.liu
+ * [ALPS00564761] sensor driver check in
+ * sensor driver check in.
+ *
  * 07 31 2012 chengxue.shen
  * NULL
  * 3h2+lens.

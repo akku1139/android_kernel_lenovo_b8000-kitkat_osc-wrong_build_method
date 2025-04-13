@@ -75,6 +75,9 @@ static u8 _bHdcpOff=0;
 #else
 static u8 _bHdcpOff=1;
 #endif
+u8 _bflagvideomute=0;
+u8 _bflagaudiomute=0;
+
 static u32 i4HdmiShareInfo[MAX_HDMI_SHAREINFO];
 static u8 HDMI_AKSV[HDCP_AKSV_COUNT];
 static u8 bKsv_buff[KSV_BUFF_SIZE]; 
@@ -699,6 +702,35 @@ void vDisableHDCP(u8 fgDisableHdcp)
 
 }	
 
+
+void mt8193_mutehdmi(u8 u1flagvideomute, u8 u1flagaudiomute)
+{
+  MT8193_HDCP_LOG("u1flagvideomute = %d, u1flagaudiomute = %d\n", u1flagvideomute, u1flagaudiomute);
+  _bflagvideomute = u1flagvideomute;
+  _bflagaudiomute = u1flagaudiomute;
+
+  if(_bHdcpOff == 1)
+  {
+    if(u1flagvideomute==TRUE)
+    {
+	  vBlackHDMIOnly();
+	}
+    else
+    {
+	  vUnBlackHDMIOnly();
+	}
+    
+    if(u1flagaudiomute==TRUE)
+    {
+	  MuteHDMIAudio();
+	}
+    else
+    {
+	  UnMuteHDMIAudio();
+	}
+  }
+}	
+
 void HdcpService(HDCP_CTRL_STATE_T e_hdcp_state)
 {
   u8 bIndx, bTemp;
@@ -766,7 +798,7 @@ void HdcpService(HDCP_CTRL_STATE_T e_hdcp_state)
         HDMI_AKSV[bIndx] = bHdcpKeyBuff[1+bIndx]; 
       }      
 
-      if((_bReAUTHCount>2)||((HDMI_AKSV[0]==0)&&(HDMI_AKSV[1]==0)&&(HDMI_AKSV[2]==0)&&(HDMI_AKSV[2]==0)))
+      if((_bReAUTHCount>2)||((HDMI_AKSV[0]==0)&&(HDMI_AKSV[1]==0)&&(HDMI_AKSV[2]==0)&&(HDMI_AKSV[3]==0)))
       {
         vSetHDCPState(HDCP_RECEIVER_NOT_READY);
         vSendHdmiCmd(HDMI_HDCP_PROTOCAL_CMD);
@@ -844,6 +876,7 @@ void HdcpService(HDCP_CTRL_STATE_T e_hdcp_state)
        
       vEnableEncrpt();//Enabe encrption
       vSetCTL0BeZero(TRUE);
+      
       // change state as check repeater
       vSetHDCPState(HDCP_CHECK_REPEATER);   
       vSendHdmiCmd(HDMI_HDCP_PROTOCAL_CMD);

@@ -7,37 +7,6 @@ namespace NSCamCustom
 /*******************************************************************************
 * 
 *******************************************************************************/
-
-
-/*******************************************************************************
-* custom exif
-*******************************************************************************/
-//#define EN_CUSTOM_EXIF_INFO
-MINT32 custom_SetExif(void **ppCustomExifTag)
-{
-#ifdef EN_CUSTOM_EXIF_INFO
-#define CUSTOM_EXIF_STRING_MAKE  "custom make"
-#define CUSTOM_EXIF_STRING_MODEL "custom model"
-#define CUSTOM_EXIF_STRING_SOFTWARE "custom software"
-static customExifInfo_t exifTag = {CUSTOM_EXIF_STRING_MAKE,CUSTOM_EXIF_STRING_MODEL,CUSTOM_EXIF_STRING_SOFTWARE};
-    if (0 != ppCustomExifTag) {
-        *ppCustomExifTag = (void*)&exifTag;
-    }
-    return 0;
-#else
-    return -1;
-#endif
-}
-//
-customExif_t const&
-getCustomExif()
-{
-    static customExif_t inst = {
-        bEnCustom       :   false,  // default value: false.
-        u4ExpProgram    :   0,      // default value: 0.    '0' means not defined, '1' manual control, '2' program normal
-    };
-    return inst;
-}
 //
 MINT32 get_atv_disp_delay(MINT32 mode)
 {
@@ -134,6 +103,27 @@ MINT32 custom_GetYuvFlashlightStep(void)
     return (int)FLASHLIGHT_YUV_STEP;
 }
 
+/*******************************************************************************
+* Author : CD
+* Functionality : custom yuv flashlight AF Lamp support
+*******************************************************************************/
+#define FLASHLIGHT_YUV_AF_LAMP 0
+MINT32 custom_GetYuvAfLampSupport(void)
+{
+    // 0: indicates no AF lamp when touch AF
+    // 1: indicates AF lamp support for touch AF
+    return (int)FLASHLIGHT_YUV_AF_LAMP;
+}
+
+/*******************************************************************************
+* Author : CD
+* Functionality : custom yuv flashlight AF Lamp support
+*******************************************************************************/
+#define FLASHLIGHT_YUV_AF_PREFLASH 0
+MINT32 custom_GetYuvPreflashAF(void)
+{
+    return (int)FLASHLIGHT_YUV_AF_PREFLASH;
+}
 
 /*******************************************************************************
 * 

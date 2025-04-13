@@ -1797,4 +1797,25 @@ void mt8193_AppGetEdidInfo(HDMI_EDID_INFO_T *pv_get_info)
 
 }
 
+
+u8 mt8193_Check_EdidHeader(void)
+{
+    u8 bIdx;
+	u8 *prbData;
+	
+	prbData = &_bEdidData[0];
+	
+	//check if EDID header pass, ie. EDID[0] ~ EDID[7] == specify header pattern
+	for(bIdx = EDID_ADDR_HEADER; bIdx < (EDID_ADDR_HEADER+EDID_HEADER_LEN); bIdx++)
+    {
+        if(*(prbData+bIdx) != aEDIDHeader[bIdx])
+        {
+            return (FALSE);
+        }
+    }
+	
+    //EDID Header Check OK Here
+    return TRUE;
+}
+
 #endif

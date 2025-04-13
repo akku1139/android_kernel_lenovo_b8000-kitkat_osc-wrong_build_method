@@ -25,6 +25,10 @@
  * $Modtime:$
  * $Log:$
  *
+ * 04 12 2013 guoqing.liu
+ * [ALPS00564761] sensor driver check in
+ * sensor driver check in.
+ *
  * Feb 9 2010 mtk80461
  * [DUMA00154355] JPeg Orientation feature check in
  *

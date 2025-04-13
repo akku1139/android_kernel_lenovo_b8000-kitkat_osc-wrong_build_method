@@ -1,7 +1,5 @@
 /* MPU6050 motion sensor driver
  *
- *
- *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
@@ -41,16 +39,12 @@
 
 #define INV_GYRO_AUTO_CALI  1
 
-/*-------------------------MT6516&MT6573 define-------------------------------*/
 #define POWER_NONE_MACRO MT65XX_POWER_NONE
-
-/*----------------------------------------------------------------------------*/
-#define I2C_DRIVERID_MPU6050	6050
 /*----------------------------------------------------------------------------*/
 #define MPU6050_DEFAULT_FS		MPU6050_FS_1000
 #define MPU6050_DEFAULT_LSB		MPU6050_FS_1000_LSB
 /*---------------------------------------------------------------------------*/
-#define DEBUG 0
+#define DEBUG 1
 /*----------------------------------------------------------------------------*/
 #define CONFIG_MPU6050_LOWPASS   /*apply low pass filter on output*/       
 /*----------------------------------------------------------------------------*/
@@ -63,17 +57,13 @@
 /*----------------------------------------------------------------------------*/
 static const struct i2c_device_id mpu6050_i2c_id[] = {{MPU6050_DEV_NAME,0},{}};
 static struct i2c_board_info __initdata i2c_mpu6050={ I2C_BOARD_INFO(MPU6050_DEV_NAME, (MPU6050_I2C_SLAVE_ADDR>>1))};
-/*the adapter id will be available in customization*/
-//static unsigned short mpu6050_force[] = {0x00, MPU6050_I2C_SLAVE_ADDR, I2C_CLIENT_END, I2C_CLIENT_END};
-//static const unsigned short *const mpu6050_forces[] = { mpu6050_force, NULL};
-//static struct i2c_client_address_data mpu6050_addr_data = { .forces = mpu6050_forces,};
 
 int packet_thresh = 75; // 600 ms / 8ms/sample
 
 /*----------------------------------------------------------------------------*/
 static int mpu6050_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id); 
 static int mpu6050_i2c_remove(struct i2c_client *client);
-//static int mpu6050_i2c_detect(struct i2c_client *client, int kind, struct i2c_board_info *info);
+static int mpu6050_i2c_detect(struct i2c_client *client, struct i2c_board_info *info);
 
 /*----------------------------------------------------------------------------*/
 typedef enum
@@ -145,18 +135,16 @@ struct mpu6050_i2c_data
 /*----------------------------------------------------------------------------*/
 static struct i2c_driver mpu6050_i2c_driver = {
     .driver = {
-//        .owner          = THIS_MODULE,
         .name           = MPU6050_DEV_NAME,
     },
     .probe              = mpu6050_i2c_probe,
     .remove             = mpu6050_i2c_remove,
-//    .detect             = mpu6050_i2c_detect,
+    .detect             = mpu6050_i2c_detect,
 #if !defined(CONFIG_HAS_EARLYSUSPEND)    
     .suspend            = mpu6050_suspend,
     .resume             = mpu6050_resume,
 #endif
     .id_table = mpu6050_i2c_id,
-    //.address_data = &mpu6050_addr_data,
 };
 
 /*----------------------------------------------------------------------------*/
@@ -173,14 +161,9 @@ static bool sensor_power = false;
 #define GYRO_ERR(fmt, args...)    printk(KERN_ERR GYRO_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
 #define GYRO_LOG(fmt, args...)    printk(KERN_INFO GYRO_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
-/*
 
-//----------------------------------------------------------------------------//
-static struct data_resolution mpu6050_offset_resolution = {{15, 6}, 64};
-*/
-
-extern int MPU6050_gse_power();
-extern int MPU6050_gse_mode();
+extern int MPU6050_gse_power(void);
+extern int MPU6050_gse_mode(void);
 
 #ifdef MPU6050_ACCESS_BY_GSE_I2C
 extern int MPU6050_i2c_master_send(u8 *buf, u8 len);
@@ -415,17 +398,6 @@ static int MPU6050_SetPowerMode(struct i2c_client *client, bool enable)
         GYRO_LOG("set power mode ok %d!\n", enable);
     }
 
-/*
-    databuf[1] = 0;
-    databuf[0] = MPU6050_REG_PWR_CTL2;    
-
-#ifdef MPU6050_ACCESS_BY_GSE_I2C
-    res = MPU6050_i2c_master_send(databuf, 0x2);
-#else
-    res = i2c_master_send(client, databuf, 0x2);
-#endif 
-
-*/
     sensor_power = enable;
 
     return MPU6050_SUCCESS;    
@@ -466,7 +438,6 @@ static int MPU6050_SetDataFormat(struct i2c_client *client, u8 dataformat)
         GYRO_LOG("read  data format: 0x%x\n", databuf[0]);
     }   
 
-    //return MPU6050_SetDataResolution(obj);  
     return MPU6050_SUCCESS;    
 }
 
@@ -579,60 +550,6 @@ static int MPU6050_SetSampleRate(struct i2c_client *client, int sample_rate)
     return MPU6050_SUCCESS;    
 }
 /*----------------------------------------------------------------------------*/
-/*
-static int MPU6050_SetIntEnable(struct i2c_client *client, u8 intenable)
-{
-    u8 databuf[2] = {0};    
-    int res = 0;
-    GYRO_FUN();    
-
-    databuf[0] = MPU6050_REG_INT_EN;    
-    databuf[1] = intenable;
-    res = i2c_master_send(client, databuf, 0x2);
-    if(res <= 0)
-    {
-        return MPU6050_ERR_I2C;
-    }
-    
-    return MPU6050_SUCCESS;    
-}
-*/
-
-#if 0
-/*----------------------------------------------------------------------------*/
-static int MPU6050_Reset(struct i2c_client *client, u8 reset)
-{
-    u8 databuf[2] = {0};    
-    int res = 0;
-    GYRO_FUN();    
-
-    //read FIFO CTL register
-    if (hwmsen_read_byte(client, MPU6050_REG_FIFO_CTL, databuf))
-    {
-        GYRO_ERR("read gyro FIFO CTRL register err!\n");
-        return MPU6050_ERR_I2C;
-    }
-    else
-    {
-        GYRO_LOG("read  gyro FIFO CTRL: 0x%x\n", databuf[0]);
-    }   
-
-    //write the reset flag of this register
-    databuf[1] = databuf[0] |reset;
-    databuf[0] = MPU6050_REG_FIFO_CTL;    
-    res = i2c_master_send(client, databuf, 0x2);
-    if (res <= 0)
-    {
-        GYRO_ERR("write FIFO CTRL register err!\n");
-        return MPU6050_ERR_I2C;
-    }
-
-    GYRO_LOG("MPU6050_Reset OK!\n");
-
-    return MPU6050_SUCCESS;    
-}
-#endif
-
 /*----------------------------------------------------------------------------*/
 static int MPU6050_FIFOConfig(struct i2c_client *client, u8 clk)
 {
@@ -860,13 +777,10 @@ static int MPU6050_ReadGyroData(struct i2c_client *client, char *buf, int bufsiz
 #endif		
 #if INV_GYRO_AUTO_CALI==1
         mutex_lock(&obj->raw_data_mutex);
-        obj->inv_cali_raw[MPU6050_AXIS_X] = obj->data[MPU6050_AXIS_X];
-        obj->inv_cali_raw[MPU6050_AXIS_Y] = obj->data[MPU6050_AXIS_Y];
-        obj->inv_cali_raw[MPU6050_AXIS_Z] = obj->data[MPU6050_AXIS_Z];
         /*remap coordinate*/
-        obj->inv_cali_raw[obj->cvt.map[MPU6050_AXIS_X]] = obj->cvt.sign[MPU6050_AXIS_X]*obj->inv_cali_raw[MPU6050_AXIS_X];
-        obj->inv_cali_raw[obj->cvt.map[MPU6050_AXIS_Y]] = obj->cvt.sign[MPU6050_AXIS_Y]*obj->inv_cali_raw[MPU6050_AXIS_Y];
-        obj->inv_cali_raw[obj->cvt.map[MPU6050_AXIS_Z]] = obj->cvt.sign[MPU6050_AXIS_Z]*obj->inv_cali_raw[MPU6050_AXIS_Z];
+        obj->inv_cali_raw[obj->cvt.map[MPU6050_AXIS_X]] = obj->cvt.sign[MPU6050_AXIS_X]*obj->data[MPU6050_AXIS_X];
+        obj->inv_cali_raw[obj->cvt.map[MPU6050_AXIS_Y]] = obj->cvt.sign[MPU6050_AXIS_Y]*obj->data[MPU6050_AXIS_Y];
+        obj->inv_cali_raw[obj->cvt.map[MPU6050_AXIS_Z]] = obj->cvt.sign[MPU6050_AXIS_Z]*obj->data[MPU6050_AXIS_Z];
         mutex_unlock(&obj->raw_data_mutex);
 #endif
         obj->data[MPU6050_AXIS_X] = obj->data[MPU6050_AXIS_X] + obj->cali_sw[MPU6050_AXIS_X];
@@ -923,12 +837,12 @@ static int MPU6050_PROCESS_SMT_DATA(struct i2c_client *client, short *data)
         xSum =xSum + data[MPU6050_AXES_NUM*i + MPU6050_AXIS_X +2]; 
         ySum =ySum + data[MPU6050_AXES_NUM*i + MPU6050_AXIS_Y +2]; 
         zSum =zSum + data[MPU6050_AXES_NUM*i + MPU6050_AXIS_Z +2]; 
-
-        /*
-        FLPLOGD("read gyro data OK: packet_num:%d, [X:%5d, Y:%5d, Z:%5d]\n", i, data[MPU6050_AXES_NUM*i + MPU6050_AXIS_X +2], 
-            data[MPU6050_AXES_NUM*i + MPU6050_AXIS_Y +2], data[MPU6050_AXES_NUM*i + MPU6050_AXIS_Z +2]);
-        FLPLOGD("MPU6050 xSum: %5d,  ySum: %5d, zSum: %5d \n", xSum, ySum, zSum); 
-        */
+		
+	/*
+	FLPLOGD("read gyro data OK: packet_num:%d, [X:%5d, Y:%5d, Z:%5d]\n", i, data[MPU6050_AXES_NUM*i + MPU6050_AXIS_X +2], data[MPU6050_AXES_NUM*i + MPU6050_AXIS_Y +2], data[MPU6050_AXES_NUM*i + MPU6050_AXIS_Z +2]);
+       FLPLOGD("MPU6050 xSum: %5d,  ySum: %5d, zSum: %5d \n", xSum, ySum, zSum); 
+       */
+       
     }
     GYRO_LOG("MPU6050 xSum: %5ld,  ySum: %5ld, zSum: %5ld \n", xSum, ySum, zSum); 
 
@@ -1000,7 +914,7 @@ static int MPU6050_PROCESS_SMT_DATA(struct i2c_client *client, short *data)
     if ( xRMS == 0 || yRMS == 0 || zRMS == 0)
         //If any of the RMS noise value returns zero, then we might have dead gyro or FIFO/register failure
         retval |= 1 << 9;
-    GYRO_LOG("retval %ld \n", retval);
+    GYRO_LOG("retval %d \n", retval);
     return retval;
 
 }
@@ -1116,7 +1030,6 @@ static int MPU6050_ReadGyroDataRaw(struct i2c_client *client, char *buf, int buf
 /*----------------------------------------------------------------------------*/
 static int MPU6050_ReadTemperature(struct i2c_client *client, char *buf, int bufsize)
 {
-    char databuf[2];    
     struct mpu6050_i2c_data *obj = i2c_get_clientdata(client);  
 
     mutex_lock(&obj->temperature_mutex);
@@ -1137,9 +1050,9 @@ static int MPU6050_ReadTemperature(struct i2c_client *client, char *buf, int buf
 /*----------------------------------------------------------------------------*/
 static int MPU6050_ReadPowerStatus(struct i2c_client *client, char *buf, int bufsize)
 {
-    struct mpu6050_i2c_data *obj = i2c_get_clientdata(client);  
-
+#if DEBUG
     GYRO_LOG("get gyro PowerStatus:[%d]\n", sensor_power);
+#endif
 
     sprintf(buf, "%x", sensor_power);
 
@@ -1152,34 +1065,12 @@ static int MPU6050_ReadPowerStatus(struct i2c_client *client, char *buf, int buf
 static ssize_t show_chipinfo_value(struct device_driver *ddri, char *buf)
 {
     struct i2c_client *client = mpu6050_i2c_client;
-    struct mpu6050_i2c_data *obj = i2c_get_clientdata(client);        
     char strbuf[MPU6050_BUFSIZE];
     if (NULL == client)
     {
         GYRO_ERR("i2c client is null!!\n");
         return 0;
     }
-
-    //MPU6050_REG_DEVID
-    char databuf[6];    
-
-    if (sensor_power == false)
-    {
-        MPU6050_SetPowerMode(client, true);
-        msleep(50);
-    }
-
-#ifdef MPU6050_ACCESS_BY_GSE_I2C
-    if (MPU6050_hwmsen_read_block(MPU6050_REG_DEVID, databuf, 1))
-#else
-    if (hwmsen_read_block(client, MPU6050_REG_DEVID, databuf, 1))
-#endif 
-    {
-        GYRO_ERR("MPU6050 read gyroscope data  error\n");
-    }
-
-    printk("MPU6050_REG_DEVID: 0x%x",databuf[0]);
-
 
     MPU6050_ReadChipInfo(client, strbuf, MPU6050_BUFSIZE);
     return snprintf(buf, PAGE_SIZE, "%s\n", strbuf);        
@@ -1330,7 +1221,7 @@ static int mpu6050_init_client(struct i2c_client *client, bool enable)
     GYRO_FUN(); 
     mpu6050_gpio_config();
 
-    res = MPU6050_SetPowerMode(client, enable);
+    res = MPU6050_SetPowerMode(client, true);
     if (res != MPU6050_SUCCESS)
     {
         return res;
@@ -1340,7 +1231,6 @@ static int mpu6050_init_client(struct i2c_client *client, bool enable)
 
     // The range should at least be 17.45 rad/s (ie: ~1000 deg/s).
     res = MPU6050_SetDataFormat(client, (MPU6050_SYNC_GYROX << MPU6050_EXT_SYNC)|
-                                //(MPU6050_DEFAULT_FS << MPU6050_FS_RANGE)|
                                 MPU6050_RATE_1K_LPFB_188HZ);
 
     res = MPU6050_SetFullScale(client, (MPU6050_DEFAULT_FS << MPU6050_FS_RANGE));
@@ -1352,6 +1242,12 @@ static int mpu6050_init_client(struct i2c_client *client, bool enable)
     // Set 125HZ sample rate
     res = MPU6050_SetSampleRate(client, 125);
     if (res != MPU6050_SUCCESS )
+    {
+        return res;
+    }
+
+    res = MPU6050_SetPowerMode(client, enable);
+    if (res != MPU6050_SUCCESS)
     {
         return res;
     }
@@ -1455,13 +1351,10 @@ static int mpu6050_release(struct inode *inode, struct file *file)
     return 0;
 }
 /*----------------------------------------------------------------------------*/
-//static int mpu6050_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-//                         unsigned long arg)
 static long mpu6050_unlocked_ioctl(struct file *file, unsigned int cmd,
        unsigned long arg)
 {
     struct i2c_client *client = (struct i2c_client*)file->private_data;
-    //struct mpu6050_i2c_data *obj = (struct mpu6050_i2c_data*)i2c_get_clientdata(client);	
     char strbuf[MPU6050_BUFSIZE] = {0};
     s16 *SMTdata;
     void __user *data;
@@ -1470,7 +1363,6 @@ static long mpu6050_unlocked_ioctl(struct file *file, unsigned int cmd,
     SENSOR_DATA sensor_data;
     int cali[3];
     int smtRes=0;
-    //GYRO_FUN();
 
     if (_IOC_DIR(cmd) & _IOC_READ)
     {
@@ -1509,8 +1401,7 @@ static long mpu6050_unlocked_ioctl(struct file *file, unsigned int cmd,
         }
         memset(SMTdata, 0, sizeof(*SMTdata) * 800);
         MPU6050_SMTReadSensorData(client, SMTdata, 800);
-        //GYRO_LOG("gyroscope read data from kernel OK: sizeof:%d, strlen:%d, packet:%d!\n", 
-        //sizeof(SMTdata), strlen(SMTdata), SMTdata[0]);
+
         GYRO_LOG("gyroscope read data from kernel OK: SMTdata[0]:%d, copied packet:%d!\n", SMTdata[0],
                  ((SMTdata[0]*MPU6050_AXES_NUM+2)*sizeof(s16)+1));
 
@@ -1654,7 +1545,6 @@ static long mpu6050_unlocked_ioctl(struct file *file, unsigned int cmd,
 
 /*----------------------------------------------------------------------------*/
 static struct file_operations mpu6050_fops = {
-//    .owner = THIS_MODULE,
     .open = mpu6050_open,
     .release = mpu6050_release,
 	.unlocked_ioctl = mpu6050_unlocked_ioctl,
@@ -1721,7 +1611,7 @@ static void mpu6050_early_suspend(struct early_suspend *h)
 {
     struct mpu6050_i2c_data *obj = container_of(h, struct mpu6050_i2c_data, early_drv);   
     int err;
-    u8 databuf[2];
+    //u8 databuf[2];
     GYRO_FUN();    
 
     if (obj == NULL)
@@ -1736,8 +1626,7 @@ static void mpu6050_early_suspend(struct early_suspend *h)
         GYRO_ERR("write power control fail!!\n");
         return;
     }
-
-
+	
     sensor_power = false;
 
     MPU6050_power(obj->hw, 0);
@@ -1767,12 +1656,12 @@ static void mpu6050_late_resume(struct early_suspend *h)
 /*----------------------------------------------------------------------------*/
 #endif /*CONFIG_HAS_EARLYSUSPEND*/
 /*----------------------------------------------------------------------------*/
-/*static int mpu6050_i2c_detect(struct i2c_client *client, int kind, struct i2c_board_info *info) 
+static int mpu6050_i2c_detect(struct i2c_client *client, struct i2c_board_info *info) 
 {    
     strcpy(info->type, MPU6050_DEV_NAME);
     return 0;
 }
-*/
+
 /*----------------------------------------------------------------------------*/
 static int mpu6050_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -1915,9 +1804,7 @@ static int mpu6050_probe(struct platform_device *pdev)
 {
     struct gyro_hw *hw = get_cust_gyro_hw();
     GYRO_FUN();
-
     MPU6050_power(hw, 1);
-    //mpu6050_force[0] = hw->i2c_num;
     if (i2c_add_driver(&mpu6050_i2c_driver))
     {
         GYRO_ERR("add driver error\n");
@@ -1929,7 +1816,6 @@ static int mpu6050_probe(struct platform_device *pdev)
 static int mpu6050_remove(struct platform_device *pdev)
 {
     struct gyro_hw *hw = get_cust_gyro_hw();
-
     GYRO_FUN();    
     MPU6050_power(hw, 0);    
     i2c_del_driver(&mpu6050_i2c_driver);
@@ -1941,7 +1827,6 @@ static struct platform_driver mpu6050_gyro_driver = {
     .remove     = mpu6050_remove,    
     .driver     = {
         .name  = "gyroscope",
-        .owner = THIS_MODULE,
     }
 };
 
@@ -1949,9 +1834,8 @@ static struct platform_driver mpu6050_gyro_driver = {
 static int __init mpu6050_init(void)
 {
 	struct gyro_hw *hw = get_cust_gyro_hw();
-    GYRO_FUN();
+	GYRO_LOG("%s: i2c_number=%d\n", __func__,hw->i2c_num); 
 	i2c_register_board_info(hw->i2c_num, &i2c_mpu6050, 1);
-
     if (platform_driver_register(&mpu6050_gyro_driver))
     {
         GYRO_ERR("failed to register driver");
@@ -1971,4 +1855,4 @@ module_exit(mpu6050_exit);
 /*----------------------------------------------------------------------------*/
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MPU6050 gyroscope driver");
-MODULE_AUTHOR("Chunlei.Wang@mediatek.com");
+MODULE_AUTHOR("Yucong.Xiong@mediatek.com");

@@ -65,6 +65,7 @@ typedef struct _sensor_data_struct
 
 #define OV9726MIPI_COLOR_FORMAT                    SENSOR_OUTPUT_FORMAT_RAW_B//SENSOR_OUTPUT_FORMAT_RAW_R
 
+#define OV9726_TEST_PATTERN_CHECKSUM     (0x5b0cfbc0)
 #define OV9726MIPI_MIN_ANALOG_GAIN				1	/* 1x */
 #define OV9726MIPI_MAX_ANALOG_GAIN				16	/* 32x */
 

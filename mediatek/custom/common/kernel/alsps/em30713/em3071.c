@@ -26,21 +26,25 @@
 #include <linux/earlysuspend.h>
 #include <linux/platform_device.h>
 #include <asm/atomic.h>
-#ifdef MT6516
+#if 0 //def MT6516
 #include <mach/mt6516_devs.h>
 #include <mach/mt6516_typedefs.h>
 #include <mach/mt6516_gpio.h>
 #include <mach/mt6516_pll.h>
+#define POWER_NONE_MACRO MT6516_POWER_NONE
+
 #endif
 
-#ifdef MT6573
+#if 0 //def MT6573
 #include <mach/mt6573_devs.h>
 #include <mach/mt6573_typedefs.h>
 #include <mach/mt6573_gpio.h>
 #include <mach/mt6573_pll.h>
+#define POWER_NONE_MACRO MT65XX_POWER_NONE
+
 #endif
 
-#ifdef MT6575
+#if 0//def MT6575
 #include <mach/mt6575_devs.h>
 #include <mach/mt6575_typedefs.h>
 #include <mach/mt6575_gpio.h>
@@ -53,16 +57,7 @@
 #include <mach/eint.h>
 
 
-
-#ifdef MT6516
-#define POWER_NONE_MACRO MT6516_POWER_NONE
-#endif
-
-#ifdef MT6573
-#define POWER_NONE_MACRO MT65XX_POWER_NONE
-#endif
-
-#if defined(MT6575)||defined(MT6589)
+#if 1 //defined(MT6575)||defined(MT6589)
 #define POWER_NONE_MACRO MT65XX_POWER_NONE
 #endif
 
@@ -100,7 +95,7 @@
  * extern functions
 *******************************************************************************/
 /*for interrup work mode support --*/
-#ifdef MT6575
+#if 0 //def MT6575
 	extern void mt65xx_eint_unmask(unsigned int line);
 	extern void mt65xx_eint_mask(unsigned int line);
 	extern void mt65xx_eint_set_polarity(kal_uint8 eintno, kal_bool ACT_Polarity);
@@ -111,7 +106,7 @@
 										 kal_bool auto_umask);
 	
 #endif
-#ifdef MT6516
+#if 0 //def MT6516
 extern void MT6516_EINTIRQUnmask(unsigned int line);
 extern void MT6516_EINTIRQMask(unsigned int line);
 extern void MT6516_EINT_Set_Polarity(kal_uint8 eintno, kal_bool ACT_Polarity);
@@ -147,6 +142,8 @@ static struct em3071_priv *g_em3071_ptr = NULL;
 
 
 static int intr_flag_value = 0;
+
+static DEFINE_MUTEX(sensor_lock);
 /*----------------------------------------------------------------------------*/
 typedef enum {
     CMC_BIT_ALS    = 1,
@@ -1193,11 +1190,16 @@ static void em3071_early_suspend(struct early_suspend *h)
 	}
 
 	#if 1
+	
 	atomic_set(&obj->als_suspend, 1);
+	
+	mutex_lock(&sensor_lock);
 		if(err = em3071_enable_als(obj->client, 0))
 		{
 			APS_ERR("disable als fail: %d\n", err); 
 		}
+	mutex_unlock(&sensor_lock);
+		
 	#endif
 }
 /*----------------------------------------------------------------------------*/
@@ -1218,11 +1220,14 @@ static void em3071_late_resume(struct early_suspend *h)
 	atomic_set(&obj->als_suspend, 0);
 	if(test_bit(CMC_BIT_ALS, &obj->enable))
 	{
+		mutex_lock(&sensor_lock);		
 		if(err = em3071_enable_als(obj->client, 1))
 		{
 			APS_ERR("enable als fail: %d\n", err);        
 
 		}
+		
+		mutex_unlock(&sensor_lock);
 	}
 	#endif
 }
@@ -1258,21 +1263,33 @@ int em3071_ps_operate(void* self, uint32_t command, void* buff_in, int size_in,
 				value = *(int *)buff_in;
 				if(value)
 				{
+				
+					mutex_lock(&sensor_lock);
 					if(err = em3071_enable_ps(obj->client, 1))
 					{
 						APS_ERR("enable ps fail: %d\n", err); 
+						
+						mutex_unlock(&sensor_lock);
 						return -1;
 					}
+					mutex_unlock(&sensor_lock);
+					
 					set_bit(CMC_BIT_PS, &obj->enable);
 					
 				}
 				else
 				{
+				
+					mutex_lock(&sensor_lock);
 					if(err = em3071_enable_ps(obj->client, 0))
 					{
 						APS_ERR("disable ps fail: %d\n", err); 
+						
+						mutex_unlock(&sensor_lock);
 						return -1;
 					}
+					
+					mutex_unlock(&sensor_lock);
 					clear_bit(CMC_BIT_PS, &obj->enable);
 					
 				}
@@ -1288,10 +1305,14 @@ int em3071_ps_operate(void* self, uint32_t command, void* buff_in, int size_in,
 			else
 			{
 				sensor_data = (hwm_sensor_data *)buff_out;	
+				
+				mutex_lock(&sensor_lock);
 				em3071_read_ps(obj->client, &obj->ps);
 				
                                 //mdelay(160);
 				em3071_read_als(obj->client, &obj->als);
+								
+				mutex_unlock(&sensor_lock);
 				APS_ERR("em3071_ps_operate als data=%d!\n",obj->als);
 				sensor_data->values[0] = em3071_get_ps_value(obj, obj->ps);
 				sensor_data->value_divide = 1;
@@ -1337,20 +1358,32 @@ int em3071_als_operate(void* self, uint32_t command, void* buff_in, int size_in,
 				value = *(int *)buff_in;				
 				if(value)
 				{
+				
+					mutex_lock(&sensor_lock);
 					if(err = em3071_enable_als(obj->client, 1))
 					{
 						APS_ERR("enable als fail: %d\n", err); 
+						
+						mutex_unlock(&sensor_lock);
 						return -1;
 					}
+					
+					mutex_unlock(&sensor_lock);
 					set_bit(CMC_BIT_ALS, &obj->enable);
 				}
 				else
 				{
+					mutex_lock(&sensor_lock);
 					if(err = em3071_enable_als(obj->client, 0))
 					{
+					
+						mutex_unlock(&sensor_lock);
 						APS_ERR("disable als fail: %d\n", err); 
 						return -1;
 					}
+					
+					mutex_unlock(&sensor_lock);
+					
 					clear_bit(CMC_BIT_ALS, &obj->enable);
 				}
 				
@@ -1366,7 +1399,10 @@ int em3071_als_operate(void* self, uint32_t command, void* buff_in, int size_in,
 			else
 			{
 				sensor_data = (hwm_sensor_data *)buff_out;
+				
+				mutex_lock(&sensor_lock);
 				em3071_read_als(obj->client, &obj->als);
+				mutex_unlock(&sensor_lock);
 								
 				sensor_data->values[0] = em3071_get_als_value(obj, obj->als);
 				sensor_data->value_divide = 1;

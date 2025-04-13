@@ -131,8 +131,9 @@ typedef enum
 // DGI0 (Base Address:+400h/+500h)
 // 1.Basic setting
 #define DGI0_DEC_CTRL      0x0400
-  #define RESET_COUNTER      0x08008000  //[27] reset the counter for timing generate
-  #define CLEAR_COUNTER      0x00008000
+  #define FIFO_WRITE_EN      0x00008000  //[15] fifo write enable
+  #define RESET_COUNTER      0x08000000  //[27] reset the counter for timing generate
+  #define CLEAR_COUNTER      0x00000000
 	
 #define DGI0_FIFO_CTRL     0x0404
   #define SW_RST             0x00080000  //[19] soft reset
@@ -334,6 +335,7 @@ typedef enum
   #define RG_VPLL_DPIX_CKSEL 0x00001000  //[13:12]VPLL_DPIX_CLK Selection
   #define RG_LVDS_DELAY      0x00000080  //[10:8]LVDS_DPIX_CLK Delay setting 70ps / step
   #define RG_VPLL_MKVCO      0x00000040  //[7]VCO Range From    160 MHz~ 390 MHz
+  #define RG_VPLL_POSTDIV_EN 0x00000010  //[4]
 
 #define REG_LVDS_ANACFG4   0x1320
   #define RG_VPLL_RST        0x00800000  //[23]

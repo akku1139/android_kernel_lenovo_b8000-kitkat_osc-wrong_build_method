@@ -24,6 +24,10 @@
  * $Modtime:$
  * $Log:$
  *
+ * 04 12 2013 guoqing.liu
+ * [ALPS00564761] sensor driver check in
+ * sensor driver check in.
+ *
  * 04 25 2012 chengxue.shen
  * [ALPS00272911] HI542 Sensor Driver Check In
  * HI542 sensor driver check in.

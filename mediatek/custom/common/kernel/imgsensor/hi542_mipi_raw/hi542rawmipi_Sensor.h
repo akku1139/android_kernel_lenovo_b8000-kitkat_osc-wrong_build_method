@@ -25,6 +25,10 @@
  * $Modtime:$
  * $Log:$
  *
+ * 04 12 2013 guoqing.liu
+ * [ALPS00564761] sensor driver check in
+ * sensor driver check in.
+ *
  * 08 19 2010 ronnie.lai
  * [DUMA00032601] [Camera][ISP]
  * Merge dual camera relative settings. Main HI542, SUB O7675 ready.

@@ -83,6 +83,7 @@ my $CUSTOM_MEMORY_DEVICE_HDR  = $ARGV[0]; # src\custom\<project>, need full path
 my $MEMORY_DEVICE_LIST_XLS    = $ARGV[1];
 my $PLATFORM                  = $ARGV[2]; # MTxxxx
 my $PROJECT               = $ARGV[3];
+my $MTK_EMIGEN_OUT_DIR = "$ENV{MTK_ROOT_OUT}/EMIGEN";
 
 
 print "$CUSTOM_MEMORY_DEVICE_HDR\n$MEMORY_DEVICE_LIST_XLS\n$PLATFORM\n" if ($DebugPrint == 1);
@@ -109,17 +110,27 @@ my $CUSTOM_EMI_H = $CUSTOM_MEMORY_DEVICE_HDR;
 my $CUSTOM_EMI_C = $CUSTOM_MEMORY_DEVICE_HDR;
 my $INFO_TAG = $CUSTOM_MEMORY_DEVICE_HDR;
 
+	#shaohui add follows for eMMC devinfo
+my $DEVINFO_EMI_C = "mediatek/platform/mt6589/kernel/drivers/sltdevinfo/";
+my $DEVINFO_EMI_H =$DEVINFO_EMI_C;
+print "$DEVINFO_EMI_C\n$DEVINFO_EMI_H\n" if ($DebugPrint == 1);
+	#shaohui add end
 if ($os eq "windows")
 {
-    $CUSTOM_EMI_H =~ s/custom_MemoryDevice.h$/output\\custom_emi\.h/i;
-    $CUSTOM_EMI_C =~ s/custom_MemoryDevice.h$/output\\custom_emi\.c/i;
+    $CUSTOM_EMI_H = "$MTK_EMIGEN_OUT_DIR/inc/custom_emi.h";
+    $CUSTOM_EMI_C = "$ENV{MTK_ROOT_OUT}/PRELOADER_OBJ/custom_emi.c";
     `mkdir output` unless (-d "output");
 }
 elsif ($os eq "linux")
 {
-    $CUSTOM_EMI_H =~ s/custom_MemoryDevice.h$/custom_emi\.h/i;
-    $CUSTOM_EMI_C =~ s/inc\/custom_MemoryDevice.h$/custom_emi\.c/i;
-    $INFO_TAG     =~ s/inc\/custom_MemoryDevice.h$/MTK_Loader_Info\.tag/i;
+    $CUSTOM_EMI_H = "$MTK_EMIGEN_OUT_DIR/inc/custom_emi.h";
+    $CUSTOM_EMI_C = "$ENV{MTK_ROOT_OUT}/PRELOADER_OBJ/custom_emi.c";
+    $INFO_TAG     = "$MTK_EMIGEN_OUT_DIR/MTK_Loader_Info.tag";
+    	#shaohui add follows for eMMC devinfo
+    $DEVINFO_EMI_C = $DEVINFO_EMI_C."devinfo_emi\.c";
+    $DEVINFO_EMI_H = $DEVINFO_EMI_H."devinfo_emi\.h";
+    print "$DEVINFO_EMI_C\n$DEVINFO_EMI_H\n" if ($DebugPrint ==1);
+	#shaohui add end
 }
 
 print "$CUSTOM_EMI_H\n$CUSTOM_EMI_C\n$INFO_TAG\n" if ($DebugPrint ==1);
@@ -134,6 +145,10 @@ my $is_existed_c             = (-e $CUSTOM_EMI_C)?           1 : 0;
 #   exit;
 #}
 
+	#shaohui add follows for eMMC devinfo
+my $is_devinfo_existed_h             = (-e $DEVINFO_EMI_H)?           1 : 0;
+my $is_devinfo_existed_c             = (-e $DEVINFO_EMI_C)?           1 : 0;
+	#shaohui add end
 
 #****************************************************************************
 # parse custom_MemoryDevice.h to extract MEMORY_DEVICE_TYPE & PART_NUMBER
@@ -489,6 +504,8 @@ if ($os eq "windows")
     {
 	unlink ($CUSTOM_EMI_C);
     }
+    my $temp_path = `dirname $CUSTOM_EMI_C`;
+    `mkdir -p $temp_path`;
     open (CUSTOM_EMI_C, ">$CUSTOM_EMI_C") or &error_handler("$CUSTOM_EMI_C: file error!", __FILE__, __LINE__);
 
     print CUSTOM_EMI_C &copyright_file_header();
@@ -501,11 +518,62 @@ if ($os eq "windows")
     print "\n$CUSTOM_EMI_C is generated\n";
 } # if ($is_existed_c == 0)
 
+#shaohui add for DEVINFO add
+#****************************************************************************
+# generate devinfo_EMI.c
+#****************************************************************************
+#if ($is_devinfo_existed_c == 0)
+{
+    if ($is_devinfo_existed_c == 1)
+    {
+	unlink ($DEVINFO_EMI_C);
+    }
+    open (DEVINFO_EMI_C, ">$DEVINFO_EMI_C") or &error_handler("$DEVINFO_EMI_C: file error!", __FILE__, __LINE__);
+
+    print DEVINFO_EMI_C &copyright_file_header();
+    print DEVINFO_EMI_C &description_file_header(                      "devinfo_emi.c",
+          "This Module defines the EMI (external memory interface) related setting.",
+                                                 "EMI auto generator". $EMIGEN_VERNO);
+    print DEVINFO_EMI_C &DEVINFO_EMI_c_file_body();
+    close DEVINFO_EMI_C or &error_handler("$DEVINFO_EMI_C: file error!", __FILE__, __LINE__);
+
+    print "\n$DEVINFO_EMI_C is generated(shaohui add print)\n";
+} # if ($is_devinfo_existed_c == 0)
+
+
+#****************************************************************************
+# generate devinfo_emi.h
+#****************************************************************************
+#if ($is_devinfo_existed_h == 0)
+{   
+   	if ($is_devinfo_existed_h == 1)
+    {
+	unlink ($DEVINFO_EMI_H);
+    }
+    open (DEVINFO_EMI_H, ">$DEVINFO_EMI_H") or &error_handler("DEVINFO_EMI_H: file error!", __FILE__, __LINE__);
+
+   print DEVINFO_EMI_H &copyright_file_header();
+    print DEVINFO_EMI_H &description_file_header(                      "devinfo_emi.h",
+          "This Module defines the EMI (external memory interface) related setting.",
+                                                 "EMI auto generator". $EMIGEN_VERNO);
+    print DEVINFO_EMI_H &DEVINFO_EMI_h_file_body();
+    close DEVINFO_EMI_H or &error_handler("$DEVINFO_EMI_H: file error!", __FILE__, __LINE__);
+
+    print "\n$DEVINFO_EMI_H is generated\n";
+} # if ($is_devinfo_existed_h == 0)
+
+#shaohui add end
 #****************************************************************************
 # generate custom_emi.h -> no build after MT6575
 #****************************************************************************
 #if ($is_existed_h == 0)
 #{
+#    if ($is_existed_h == 1)
+#    {
+#        unlink ($CUSTOM_EMI_H);
+#    }
+#    my $temp_path = `dirname $CUSTOM_EMI_H`;
+#    `mkdir -p $temp_path`;
 #    open (CUSTOM_EMI_H, ">$CUSTOM_EMI_H") or &error_handler("CUSTOM_EMI_H: file error!", __FILE__, __LINE__);
 #
 #    print CUSTOM_EMI_H &copyright_file_header();
@@ -774,6 +842,209 @@ __TEMPLATE
     return $template ;
 }
 
+#########shaohui add start for DEVINFO
+#****************************************************************************
+# subroutine:  DEVINFO_EMI_c_file_body
+# return:      
+#****************************************************************************
+sub DEVINFO_EMI_c_file_body
+{
+    ###
+    my $EMI_SETTINGS_string = "" ;
+    my $ddr = -1 ;
+
+    $iter = 0 ;
+
+    for $iter (0..$TotalCustemChips-1)
+    {
+        if ($DEV_TYPE1[$iter] != "00")
+	{
+            $EMI_SETTINGS_string = $EMI_SETTINGS_string . $EMI_SETTINGS[$iter] ;
+            $EMI_SETTINGS_string = $EMI_SETTINGS_string . " ," ;
+	}
+    }
+    for $iter (0..$TotalCustemChips-1)
+    {
+        if ($DEV_TYPE1[$iter] == "00")
+	{
+            $EMI_SETTINGS_string = $EMI_SETTINGS_string . $EMI_SETTINGS[$iter] ;
+            $EMI_SETTINGS_string = $EMI_SETTINGS_string . " ," ;
+	}
+    }
+=head
+previous version
+    while ($iter<$TotalCustemChips)
+    {
+        if ($DEV_TYPE1[$iter] == "00")
+        {
+            $ddr = $iter ;
+            print "Discrete ddr found $ddr \n" ;
+            $iter = $iter + 1 ;
+        }
+        else
+        {
+            $EMI_SETTINGS_string = $EMI_SETTINGS_string . $EMI_SETTINGS[$iter] ;
+
+            $iter = $iter + 1 ;
+            if ($iter < $TotalCustemChips || $ddr != -1)
+            {
+                $EMI_SETTINGS_string = $EMI_SETTINGS_string . " ," ;
+            }
+        }
+    }
+# if we have discrete dram, we put them in the end	
+    if ($ddr != -1)
+    {
+        $EMI_SETTINGS_string = $EMI_SETTINGS_string . $EMI_SETTINGS[$ddr] ;
+    }
+=cut
+	
+	
+	my $template = <<"__TEMPLATE";
+/********************************************************************************
+ *------------------------------------------------------------------------------
+ * WARNING!!!  WARNING!!!   WARNING!!!  WARNING!!!  WARNING!!!  WARNING!!! 
+ * This file is generated by EMI Auto-gen Tool.
+ * Please do not modify the content directly!  It could be overwritten!
+ * More information: 
+ * This file is auto generated by emigen.pl;
+ * Pls remake or new preloader to generate!
+ * By shaohui mods 20140306 @ longcheer.shanghai
+ *------------------------------------------------------------------------------
+*********************************************************************************/
+
+#include "devinfo_emi.h"
+
+#define NUM_EMI_RECORD ($TotalCustemChips)
+
+int num_of_emi_records = NUM_EMI_RECORD ;
+
+EMI_SETTINGS emi_settings[] =
+{
+     $EMI_SETTINGS_string
+};
+__TEMPLATE
+    return $template ;
+}
+
+#****************************************************************************
+# subroutine:  HeaderBody_for_lpsdram
+# return:      content for DEVINFO_EMI_c_file_body.h 
+#****************************************************************************
+sub DEVINFO_EMI_h_file_body
+{
+    ###
+    my $template = <<"__TEMPLATE";
+
+#ifndef DEVINFO_EMI_H
+#define DEVINFO_EMI_H
+
+/****************************************
+This file is auto generated by emigen.pl;
+Pls remake or new preloader to generate!
+By shaohui mods 20121217
+*****************************************/
+typedef struct
+{
+//shaohui add this section for eMCP info
+	char DEVINFO_MCP[30];	//30 charactors 
+//  //shaohui add end
+
+    int   sub_version;            // sub_version: 0x1 for new version
+    int  type;                /* 0x0000 : Invalid
+                                 0x0001 : Discrete DDR1
+                                 0x0002 : Discrete LPDDR2
+                                 0x0003 : Discrete LPDDR3
+                                 0x0004 : Discrete PCDDR3
+                                 0x0101 : MCP(NAND+DDR1)
+                                 0x0102 : MCP(NAND+LPDDR2)
+                                 0x0103 : MCP(NAND+LPDDR3)
+                                 0x0104 : MCP(NAND+PCDDR3)
+                                 0x0201 : MCP(eMMC+DDR1)
+                                 0x0202 : MCP(eMMC+LPDDR2)
+                                 0x0203 : MCP(eMMC+LPDDR3)
+                                 0x0204 : MCP(eMMC+PCDDR3)
+                              */
+    int   id_length;              // EMMC and NAND ID checking length
+    int   fw_id_length;              // FW ID checking length
+    char  ID[16];
+    char  fw_id[8];               // To save fw id
+    int   EMI_CONA_VAL;           //@0x3000
+    int   DRAMC_DRVCTL0_VAL;      //@0x40B8               -> customized TX I/O driving
+    int   DRAMC_DRVCTL1_VAL;      //@0x40BC               -> customized TX I/O driving
+    int   DRAMC_ACTIM_VAL;        //@0x4000
+    int   DRAMC_GDDR3CTL1_VAL;    //@0x40F4
+    int   DRAMC_CONF1_VAL;        //@0x4004
+    int   DRAMC_DDR2CTL_VAL;      //@0x407C 
+    int   DRAMC_TEST2_3_VAL;      //@0x4044
+    int   DRAMC_CONF2_VAL;        //@0x4008
+    int   DRAMC_PD_CTRL_VAL;      //@0x41DC
+    int   DRAMC_PADCTL3_VAL;      //@0x4014               -> customized TX DQS delay
+    int   DRAMC_DQODLY_VAL;       //@0x4200~0x420C        -> customized TX DQ delay
+    int   DRAMC_ADDR_OUTPUT_DLY;  // for E1 DDR2 only
+    int   DRAMC_CLK_OUTPUT_DLY;   // for E1 DDR2 only
+    int   DRAMC_ACTIM1_VAL;       //@0x41E8
+    int   DRAMC_MISCTL0_VAL;      //@0x40FC
+    int   DRAMC_ACTIM05T_VAL;     //@0x41F8
+    int   DRAM_RANK_SIZE[4];
+    int   reserved[10];
+
+    union
+    {
+        struct
+        {
+            int   LPDDR2_MODE_REG_1;
+            int   LPDDR2_MODE_REG_2;
+            int   LPDDR2_MODE_REG_3;
+            int   LPDDR2_MODE_REG_5;
+            int   LPDDR2_MODE_REG_10;
+            int   LPDDR2_MODE_REG_63;
+        };
+        struct
+        {
+            int   DDR1_MODE_REG;
+            int   DDR1_EXT_MODE_REG;
+        };
+        struct
+        {
+            int   PCDDR3_MODE_REG0;
+            int   PCDDR3_MODE_REG1;
+            int   PCDDR3_MODE_REG2;
+            int   PCDDR3_MODE_REG3;
+        };
+        struct
+        {
+            int   LPDDR3_MODE_REG_1;
+            int   LPDDR3_MODE_REG_2;
+            int   LPDDR3_MODE_REG_3;
+            int   LPDDR3_MODE_REG_5;
+            int   LPDDR3_MODE_REG_10;
+            int   LPDDR3_MODE_REG_63;
+        };
+    };
+} EMI_SETTINGS;
+
+
+
+extern int num_of_emi_records;
+extern EMI_SETTINGS emi_settings[];
+
+/* 0: invalid */
+/* 1: mDDR1 */
+/* 2: mDDR2 */
+/* 3: mDDR3 */
+#endif
+
+__TEMPLATE
+
+    return $template;
+}
+
+
+
+
+
+##########shaohui add end
 
 #****************************************************************************
 # subroutine:  DeviceListParser_LPSDRAM
@@ -1153,6 +1424,7 @@ sub DeviceListParser_LPSDRAM
         print "$FW_ID_String[$id]\n" ;
 
         $EMI_SETTINGS[$id] = "\n\t//$PartNum\n\t{\n\t\t" ;
+        $EMI_SETTINGS[$id] = $EMI_SETTINGS[$id] ."\"$PartNum\"" . ",/*shaohui add This Section for eMCP DEVinfo */ \n\t\t" ;
         $EMI_SETTINGS[$id] = $EMI_SETTINGS[$id] . $Sub_version[$id] . ",\t\t/* sub_version */\n\t\t" ;
         $EMI_SETTINGS[$id] = $EMI_SETTINGS[$id] . "0x" . $DEV_TYPE1[$id] . $DEV_TYPE2[$id] . ",\t\t/* TYPE */\n\t\t" ;
         $EMI_SETTINGS[$id] = $EMI_SETTINGS[$id] . $ID_Length[$id] . ",\t\t/* EMMC ID/FW ID checking length */\n\t\t" ;
@@ -1319,7 +1591,10 @@ sub write_tag()
     {
         unlink ($INFO_TAG);
     }
-    
+
+    my $temp_path = `dirname $INFO_TAG`;
+    `mkdir -p $temp_path`;
+
     open FILE,">$INFO_TAG";
     print FILE pack("a24", "MTK_BLOADER_INFO_v10");
     $filesize = $filesize + 24 ;

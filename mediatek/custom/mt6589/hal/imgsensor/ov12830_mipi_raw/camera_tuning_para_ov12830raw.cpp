@@ -89,19 +89,19 @@ const NVRAM_CAMERA_3A_STRUCT CAMERA_3A_NVRAM_DEFAULT_VALUE =
     {
         // rDevicesInfo
         {
-            1195,   // u4MinGain, 1024 base =  1x
+            1152,   // u4MinGain, 1024 base =  1x
             16384,  // u4MaxGain, 16x
-            100,     // u4MiniISOGain, ISOxx
+            70,     // u4MiniISOGain, ISOxx
             128,    // u4GainStepUnit, 1x/8
-            33,     // u4PreExpUnit
+            16763,     // u4PreExpUnit
             30,     // u4PreMaxFrameRate
-            33,     // u4VideoExpUnit
+            16763,     // u4VideoExpUnit
             30,     // u4VideoMaxFrameRate
             1024,   // u4Video2PreRatio, 1024 base = 1x
-            58,     // u4CapExpUnit
+            21334,     // u4CapExpUnit
             15,     // u4CapMaxFrameRate
             1024,   // u4Cap2PreRatio, 1024 base = 1x
-            28,      // u4LensFno, Fno = 2.8
+            24,      // u4LensFno, Fno = 2.8
             350     // u4FocusLength_100x
          },
          // rHistConfig

@@ -4,6 +4,8 @@
 #include <linux/interrupt.h>
 #include <cust_eint.h>
 #include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+#include <linux/cdev.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/rtpm_prio.h>
@@ -12,6 +14,7 @@
 #include <linux/delay.h>
 #include <mach/mt_pm_ldo.h>
 //#include <mach/mt6575_pll.h>
+#include <linux/dma-mapping.h>
 
 #ifdef TPD_GPT_TIMER_RESUME
 #include <mach/hardware.h>
@@ -31,6 +34,8 @@
 
 #define TPD_INFO(fmt, arg...)  printk("[tpd info:5x06]" "[%s]" fmt "\r\n", __FUNCTION__ ,##arg)
 //#define TP_DEBUG
+#undef TPD_DEBUG
+#undef TPD_DMESG
 #if defined(TP_DEBUG)
 #define TPD_DEBUG(fmt, arg...)  printk("[tpd debug:5x06]" "[%s]" fmt "\r\n", __FUNCTION__ ,##arg)
 #define TPD_DMESG(fmt, arg...)  printk("[tpd dmesg:5x06]" "[%s]" fmt "\r\n", __FUNCTION__ ,##arg)
@@ -47,19 +52,10 @@ struct task_struct *thread = NULL;
 static DECLARE_WAIT_QUEUE_HEAD(waiter);
  
 static void tpd_eint_interrupt_handler(void);
-  
-extern void mt65xx_eint_unmask(unsigned int line);
-extern void mt65xx_eint_mask(unsigned int line);
-extern void mt65xx_eint_set_hw_debounce(kal_uint8 eintno, kal_uint32 ms);
-extern kal_uint32 mt65xx_eint_set_sens(kal_uint8 eintno, kal_bool sens);
-extern void mt65xx_eint_registration(kal_uint8 eintno, kal_bool Dbounce_En,
-								  kal_bool ACT_Polarity, void (EINT_FUNC_PTR)(void),
-								  kal_bool auto_umask);
-
- 
-static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_device_id *id);
-static int tpd_detect(struct i2c_client *client, int kind, struct i2c_board_info *info);
-static int __devexit tpd_remove(struct i2c_client *client);
+   
+static int tpd_probe(struct i2c_client *client, const struct i2c_device_id *id);
+static int tpd_detect(struct i2c_client *client, struct i2c_board_info *info);
+static int tpd_remove(struct i2c_client *client);
 static int touch_event_handler(void *unused);
  
 static int tpd_flag = 0;
@@ -79,7 +75,7 @@ static int p_point_num = 0;
 
 //register define
 
-#define FINGER_NUM_MAX	5 
+#define FINGER_NUM_MAX	10
 
 struct touch_info {
     int y[FINGER_NUM_MAX];
@@ -101,7 +97,73 @@ static const unsigned short * const forces[] = { force, NULL };
 //static struct i2c_client_address_data addr_data = { .forces = forces, };
 static struct i2c_board_info __initdata i2c_tpd = { I2C_BOARD_INFO("mtk-tpd", (0x70>>1))};
 #endif
- 
+
+static struct kobject *touchdebug_kobj;
+static struct kobject *touchdebug_kobj_info;
+static int sensitivity_level = 1;
+static int EnableWakeUp = 0;
+
+/* Waiting for deivce resume and write back touch sensitivity level */
+static struct timer_list sensitivity_write_timer;
+
+/* Touch panel resume delay */
+#define TOUCH_RESUME_INTERVAL 500
+
+/* Workqueue for set touch sensitivity level */
+static struct workqueue_struct *sensitivity_wq;
+static struct work_struct *sensitivity_work;
+
+struct sensitivity_mapping {
+	int symbol;
+	int value;
+};
+
+enum {
+	TOUCH_SENSITIVITY_SYMBOL_HIGH = 0,
+	TOUCH_SENSITIVITY_SYMBOL_MEDIUM,
+	TOUCH_SENSITIVITY_SYMBOL_LOW,
+	TOUCH_SENSITIVITY_SYMBOL_COUNT,
+};
+
+static struct sensitivity_mapping sensitivity_table[] = {
+	{TOUCH_SENSITIVITY_SYMBOL_HIGH,    14},
+	{TOUCH_SENSITIVITY_SYMBOL_MEDIUM,  16},
+	{TOUCH_SENSITIVITY_SYMBOL_LOW,     19},
+};
+
+#define TOUCH_SENSITIVITY_SYMBOL_DEFAULT TOUCH_SENSITIVITY_SYMBOL_MEDIUM;
+
+#define I2C_DEV_NUMBER		8
+#define DRIVER_DEV_NAME	"fts_ts"
+
+struct fts_dev{
+	dev_t dev;
+	struct cdev cdev;
+	struct class *class;
+	unsigned char *buf;
+	struct fts_info *ts;
+};
+
+struct fts_info{
+	struct i2c_client *client;
+	struct input_dev *input_dev;
+};
+
+struct i2c_msg_formal{
+	__u16 addr;	/* slave address			*/
+	__u16 flags;
+#define I2C_M_TEN		0x0010	/* this is a ten bit chip address */
+#define I2C_M_RD		0x0001	/* read data, from slave to master */
+#define I2C_M_NOSTART		0x4000	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_REV_DIR_ADDR	0x2000	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_IGNORE_NAK	0x1000	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_NO_RD_ACK		0x0800	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_RECV_LEN		0x0400	/* length will be first received byte */
+	__u16 len;		/* msg length				*/
+	__u8 *buf;		/* pointer to msg data			*/
+};
+
+static struct fts_dev ts_dev;
 
 #include <mach/mt_boot.h>
 static int boot_mode = 0; 
@@ -133,7 +195,7 @@ static int tpd_def_calmat_local_factory[8] = TPD_CALIBRATION_MATRIX_ROTATION_FAC
 static struct i2c_driver tpd_i2c_driver = {
 	.driver.name = "mtk-tpd",
 	.probe = tpd_probe,
-	.remove = __devexit_p(tpd_remove),
+	.remove = tpd_remove,
 	.id_table = tpd_id,
 	.detect = tpd_detect,
 	.address_list = (const unsigned short*) forces,
@@ -142,6 +204,669 @@ static struct i2c_driver tpd_i2c_driver = {
 #if 0 
 static unsigned short i2c_addr[] = {0x72}; 
 #endif  
+
+static u8 *gpDMABuf_va = NULL;
+static u32 gpDMABuf_pa = 0;
+
+int fts_dma_i2c_read(struct i2c_client *client, u16 addr, int len, u32 rxbuf)
+{
+	int ret;
+	u8 buffer[1];
+
+	struct i2c_msg msg[2] =
+	{
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.buf = buffer,
+			.len = 1,
+			.timing = 400
+		},
+		{
+			.addr = client->addr,
+			.ext_flag = (client->ext_flag | I2C_ENEXT_FLAG | I2C_DMA_FLAG),
+			.flags = I2C_M_RD,
+			.buf = (u8 *)rxbuf,
+			.len = len,
+			.timing = 400
+		},
+	};
+
+	buffer[0] = addr;
+
+	if ((u8 *)rxbuf == NULL)
+		return -1;
+
+	ret = i2c_transfer(client->adapter, &msg[0], 2);
+	if (ret < 0)
+		dev_err(&client->dev, "%s i2c dma read error.\n", __func__);
+
+	return 0;
+}
+
+static ssize_t fts_i2cdev_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
+{
+	char *tmp;
+	int ret;
+	/* struct fts_info *ts = ts_dev.ts; */ 
+	struct i2c_client *client = ts_dev.ts->client;
+
+	TPD_DMESG("called\n");
+
+	if (count > 8192)
+		count = 8192;
+
+	tmp = kmalloc(count, GFP_KERNEL);
+	if (tmp == NULL)
+		return -ENOMEM;
+
+	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
+		iminor(file->f_path.dentry->d_inode), count);
+
+	ret = i2c_master_recv(client, tmp, count);
+	if (ret >= 0)
+		ret = copy_to_user(buf, tmp, count) ? -EFAULT : ret;
+	kfree(tmp);
+	return ret;
+}
+
+static ssize_t fts_i2cdev_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
+{
+	int ret;
+	char *tmp;
+	/* struct fts_info *ts = ts_dev.ts; */
+	struct i2c_client *client = ts_dev.ts->client;
+
+	TPD_DMESG("called\n");
+
+	if (count > 8192)
+		count = 8192;
+/*
+	tmp = memdup_user(buf, count);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+*/
+	tmp = kmalloc(count,GFP_KERNEL);
+	if (tmp==NULL)
+		return -ENOMEM;
+	if (copy_from_user(tmp,buf,count)) {
+		kfree(tmp);
+		return -EFAULT;
+	}
+
+	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
+		iminor(file->f_path.dentry->d_inode), count);
+
+	ret = i2c_master_send(client, tmp, count);
+	kfree(tmp);
+	return ret;
+}
+
+static int i2cdev_check(struct device *dev, void *addrp)
+{
+	struct i2c_client *client = i2c_verify_client(dev);
+	/* struct fts_info *ts = ts_dev.ts; */
+
+	TPD_DMESG("called\n");
+
+	if (!client || client->addr != *(unsigned int *)addrp)
+		return 0;
+
+	return dev->driver ? -EBUSY : 0;
+}
+
+static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
+{
+	return device_for_each_child(&adapter->dev, &addr, i2cdev_check);
+}
+
+static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
+		unsigned long arg)
+{
+	struct i2c_rdwr_ioctl_data rdwr_arg;
+	struct i2c_msg *rdwr_pa, *rdwr_pa_tmp;
+	struct i2c_msg_formal *rdwr_pa_formal;
+	u8 __user **data_ptrs;
+	int i, res;
+	/* struct fts_info *ts = ts_dev.ts; */
+
+	TPD_DMESG("called\n");
+
+	if (copy_from_user(&rdwr_arg,
+			   (struct i2c_rdwr_ioctl_data __user *)arg,
+			   sizeof(rdwr_arg)))
+		return -EFAULT;
+
+	/* Put an arbitrary limit on the number of messages that can
+	 * be sent at once */
+	if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
+		return -EINVAL;
+
+	rdwr_pa = kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), GFP_KERNEL);
+	if (!rdwr_pa)
+		return -ENOMEM;
+
+	rdwr_pa_formal = kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg_formal), GFP_KERNEL);
+	if (!rdwr_pa)
+		return -ENOMEM;
+
+	if (copy_from_user(rdwr_pa_formal, rdwr_arg.msgs,
+			   rdwr_arg.nmsgs * sizeof(struct i2c_msg_formal))) {
+		kfree(rdwr_pa);
+		return -EFAULT;
+	}
+
+	data_ptrs = kmalloc(rdwr_arg.nmsgs * sizeof(u8 __user *), GFP_KERNEL);
+	if (data_ptrs == NULL) {
+		kfree(rdwr_pa);
+		kfree(rdwr_pa_formal);
+		return -ENOMEM;
+	}
+
+	res = 0;
+	for (i = 0, rdwr_pa_tmp = rdwr_pa; i < rdwr_arg.nmsgs; i++, rdwr_pa_tmp++) {
+		rdwr_pa_tmp->addr = rdwr_pa_formal->addr;
+		rdwr_pa_tmp->flags = rdwr_pa_formal->flags;
+		rdwr_pa_tmp->len = rdwr_pa_formal->len;
+		rdwr_pa_tmp->timing = client->timing;
+		rdwr_pa_tmp->ext_flag = 0;
+
+		/* Limit the size of the message to a sane amount;
+		 * and don't let length change either. */
+		if ((rdwr_pa[i].len > 8192) ||
+		    (rdwr_pa[i].flags & I2C_M_RECV_LEN)) {
+			res = -EINVAL;
+			break;
+		}
+		data_ptrs[i] = (u8 __user *)rdwr_pa_formal[i].buf;
+
+		rdwr_pa[i].buf = kmalloc(rdwr_pa[i].len, GFP_KERNEL);
+		if (rdwr_pa[i].buf == NULL) {
+			res = -ENOMEM;
+			break;
+		}
+		if (copy_from_user(rdwr_pa[i].buf, data_ptrs[i],
+				   rdwr_pa[i].len)) {
+				++i; /* Needs to be kfreed too */
+				res = -EFAULT;
+			break;
+		}
+/*
+		rdwr_pa[i].buf = memdup_user(data_ptrs[i], rdwr_pa[i].len);
+		if (IS_ERR(rdwr_pa[i].buf)) {
+			res = PTR_ERR(rdwr_pa[i].buf);
+			break;
+		}
+*/
+	}
+	if (res < 0) {
+		int j;
+		for (j = 0; j < i; ++j)
+			kfree(rdwr_pa[j].buf);
+		kfree(data_ptrs);
+		kfree(rdwr_pa);
+		kfree(rdwr_pa_formal);
+		return res;
+	}
+
+	res = i2c_transfer(client->adapter, rdwr_pa, rdwr_arg.nmsgs);
+	while (i-- > 0) {
+		if (res >= 0 && (rdwr_pa[i].flags & I2C_M_RD)) {
+			if (copy_to_user(data_ptrs[i], rdwr_pa[i].buf,
+					 rdwr_pa[i].len))
+				res = -EFAULT;
+		}
+		kfree(rdwr_pa[i].buf);
+	}
+	kfree(data_ptrs);
+	kfree(rdwr_pa);
+	kfree(rdwr_pa_formal);
+	return res;
+}
+
+static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
+		unsigned long arg)
+{
+	struct i2c_smbus_ioctl_data data_arg;
+	union i2c_smbus_data temp;
+	int datasize, res;
+
+	if (copy_from_user(&data_arg,
+			   (struct i2c_smbus_ioctl_data __user *) arg,
+			   sizeof(struct i2c_smbus_ioctl_data)))
+		return -EFAULT;
+	if ((data_arg.size != I2C_SMBUS_BYTE) &&
+	    (data_arg.size != I2C_SMBUS_QUICK) &&
+	    (data_arg.size != I2C_SMBUS_BYTE_DATA) &&
+	    (data_arg.size != I2C_SMBUS_WORD_DATA) &&
+	    (data_arg.size != I2C_SMBUS_PROC_CALL) &&
+	    (data_arg.size != I2C_SMBUS_BLOCK_DATA) &&
+	    (data_arg.size != I2C_SMBUS_I2C_BLOCK_BROKEN) &&
+	    (data_arg.size != I2C_SMBUS_I2C_BLOCK_DATA) &&
+	    (data_arg.size != I2C_SMBUS_BLOCK_PROC_CALL)) {
+		dev_dbg(&client->adapter->dev,
+			"size out of range (%x) in ioctl I2C_SMBUS.\n",
+			data_arg.size);
+		return -EINVAL;
+	}
+	/* Note that I2C_SMBUS_READ and I2C_SMBUS_WRITE are 0 and 1,
+	   so the check is valid if size==I2C_SMBUS_QUICK too. */
+	if ((data_arg.read_write != I2C_SMBUS_READ) &&
+	    (data_arg.read_write != I2C_SMBUS_WRITE)) {
+		dev_dbg(&client->adapter->dev,
+			"read_write out of range (%x) in ioctl I2C_SMBUS.\n",
+			data_arg.read_write);
+		return -EINVAL;
+	}
+
+	/* Note that command values are always valid! */
+
+	if ((data_arg.size == I2C_SMBUS_QUICK) ||
+	    ((data_arg.size == I2C_SMBUS_BYTE) &&
+	    (data_arg.read_write == I2C_SMBUS_WRITE)))
+		/* These are special: we do not use data */
+		return i2c_smbus_xfer(client->adapter, client->addr,
+				      client->flags, data_arg.read_write,
+				      data_arg.command, data_arg.size, NULL);
+
+	if (data_arg.data == NULL) {
+		dev_dbg(&client->adapter->dev,
+			"data is NULL pointer in ioctl I2C_SMBUS.\n");
+		return -EINVAL;
+	}
+
+	if ((data_arg.size == I2C_SMBUS_BYTE_DATA) ||
+	    (data_arg.size == I2C_SMBUS_BYTE))
+		datasize = sizeof(data_arg.data->byte);
+	else if ((data_arg.size == I2C_SMBUS_WORD_DATA) ||
+		 (data_arg.size == I2C_SMBUS_PROC_CALL))
+		datasize = sizeof(data_arg.data->word);
+	else /* size == smbus block, i2c block, or block proc. call */
+		datasize = sizeof(data_arg.data->block);
+
+	if ((data_arg.size == I2C_SMBUS_PROC_CALL) ||
+	    (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) ||
+	    (data_arg.size == I2C_SMBUS_I2C_BLOCK_DATA) ||
+	    (data_arg.read_write == I2C_SMBUS_WRITE)) {
+		if (copy_from_user(&temp, data_arg.data, datasize))
+			return -EFAULT;
+	}
+	if (data_arg.size == I2C_SMBUS_I2C_BLOCK_BROKEN) {
+		/* Convert old I2C block commands to the new
+		   convention. This preserves binary compatibility. */
+		data_arg.size = I2C_SMBUS_I2C_BLOCK_DATA;
+		if (data_arg.read_write == I2C_SMBUS_READ)
+			temp.block[0] = I2C_SMBUS_BLOCK_MAX;
+	}
+	res = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+	      data_arg.read_write, data_arg.command, data_arg.size, &temp);
+	if (!res && ((data_arg.size == I2C_SMBUS_PROC_CALL) ||
+		     (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) ||
+		     (data_arg.read_write == I2C_SMBUS_READ))) {
+		if (copy_to_user(data_arg.data, &temp, datasize))
+			return -EFAULT;
+	}
+	return res;
+}
+
+static long fts_i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct i2c_client *client = ts_dev.ts->client;
+	unsigned long funcs;
+	/* struct fts_info *ts = ts_dev.ts; */
+
+	TPD_DMESG( "ioctl, cmd=0x%02x, arg=0x%02lx\n", cmd, arg);
+
+	switch (cmd) {
+	case I2C_SLAVE:
+	case I2C_SLAVE_FORCE:
+		/* NOTE:  devices set up to work with "new style" drivers
+		 * can't use I2C_SLAVE, even when the device node is not
+		 * bound to a driver.  Only I2C_SLAVE_FORCE will work.
+		 *
+		 * Setting the PEC flag here won't affect kernel drivers,
+		 * which will be using the i2c_client node registered with
+		 * the driver model core.  Likewise, when that client has
+		 * the PEC flag already set, the i2c-dev driver won't see
+		 * (or use) this setting.
+		 */
+		if ((arg > 0x3ff) ||
+		    (((client->flags & I2C_M_TEN) == 0) && arg > 0x7f))
+			return -EINVAL;
+		if (cmd == I2C_SLAVE && i2cdev_check_addr(client->adapter, arg))
+			return -EBUSY;
+		/* REVISIT: address could become busy later */
+		client->addr = arg;
+		return 0;
+	case I2C_TENBIT:
+		if (arg)
+			client->flags |= I2C_M_TEN;
+		else
+			client->flags &= ~I2C_M_TEN;
+		return 0;
+	case I2C_PEC:
+		if (arg)
+			client->flags |= I2C_CLIENT_PEC;
+		else
+			client->flags &= ~I2C_CLIENT_PEC;
+		return 0;
+	case I2C_FUNCS:
+		funcs = i2c_get_functionality(client->adapter);
+		return put_user(funcs, (unsigned long __user *)arg);
+
+	case I2C_RDWR:
+		return i2cdev_ioctl_rdrw(client, arg);
+
+	case I2C_SMBUS:
+		return i2cdev_ioctl_smbus(client, arg);
+
+	case I2C_RETRIES:
+		client->adapter->retries = arg;
+		break;
+	case I2C_TIMEOUT:
+		/* For historical reasons, user-space sets the timeout
+		 * value in units of 10 ms.
+		 */
+		client->adapter->timeout = msecs_to_jiffies(arg * 10);
+		break;
+	default:
+		/* NOTE:  returning a fault code here could cause trouble
+		 * in buggy userspace code.  Some old kernel bugs returned
+		 * zero in this case, and userspace code might accidentally
+		 * have depended on that bug.
+		 */
+		return -ENOTTY;
+	}
+	return 0;
+}
+
+static int fts_i2cdev_open(struct inode *inode, struct file *file)
+{
+
+	/* struct fts_info *ts = ts_dev.ts; */
+
+	TPD_DMESG("called\n");
+
+	if(ts_dev.ts){
+		disable_irq(ts_dev.ts->client->irq);
+		printk("[i2c-8] [fts_i2cdev_open][success]\n");
+	}
+	else{
+		printk("[i2c-8] [fts_i2cdev_open][fail]\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int fts_i2cdev_release(struct inode *inode, struct file *file)
+{
+
+	/* struct fts_info *ts = ts_dev.ts; */
+
+/*
+	struct i2c_client *client = file->private_data;
+
+	i2c_put_adapter(client->adapter);
+	kfree(client);
+	file->private_data = NULL;
+*/
+	TPD_DMESG("called\n");
+	if(ts_dev.ts)
+		enable_irq(ts_dev.ts->client->irq);
+	else
+		return -ENOMEM;
+
+	return 0;
+}
+
+static const struct file_operations fts_fops = {
+	.owner		= THIS_MODULE,
+	//.llseek		= no_llseek,
+	.read		= fts_i2cdev_read,
+	.write		= fts_i2cdev_write,
+	.unlocked_ioctl	= fts_i2cdev_ioctl,
+	.open		= fts_i2cdev_open,
+	.release	= fts_i2cdev_release,
+};
+
+int fts_i2cdev_init(struct fts_info *ts)
+{
+
+	int ret;
+	struct device *dev;
+
+	memset(&ts_dev, 0, sizeof(struct fts_dev));
+
+	ret = alloc_chrdev_region(&ts_dev.dev, 0, 1, DRIVER_DEV_NAME);
+	if(ret){
+		TPD_DMESG("Unable to get a dynamic major for %s.\n", DRIVER_DEV_NAME);
+		return ret;
+	}
+
+	cdev_init(&ts_dev.cdev, &fts_fops);
+	ts_dev.cdev.owner = THIS_MODULE;
+	ret = cdev_add(&ts_dev.cdev, ts_dev.dev, 1);
+	if (ret) {
+		TPD_DMESG("Unable to register character device !\n");
+		goto fail_add;
+	}
+
+	ts_dev.class = class_create(THIS_MODULE, DRIVER_DEV_NAME);
+
+	if(IS_ERR(ts_dev.class)){
+		TPD_DMESG("Unable to register i2c device class !\n");
+		ret = PTR_ERR(ts_dev.class);
+		goto err_class;
+	}
+
+	dev = device_create(ts_dev.class, NULL, ts_dev.dev, NULL, "i2c-%d", I2C_DEV_NUMBER);
+
+	if(IS_ERR(dev)){
+		TPD_DMESG("Failed to create device !\n");
+		ret = PTR_ERR(dev);
+		goto err_device;
+	}
+
+	ts_dev.ts = ts;
+
+	return 0;
+
+err_device:
+	class_destroy(ts_dev.class);
+err_class:
+	cdev_del(&ts_dev.cdev);
+fail_add:
+	unregister_chrdev_region(ts_dev.dev, 1);
+
+	return ret;
+}
+
+void fts_i2cdev_exit(void)
+{
+
+	cdev_del(&ts_dev.cdev);
+	unregister_chrdev_region(ts_dev.dev, 1);
+	device_destroy(ts_dev.class, ts_dev.dev);
+	class_destroy(ts_dev.class);
+}
+
+int myatoi(const char *a)
+{
+	int s = 0;
+
+	while(*a >= '0' && *a <= '9')
+		s = (s << 3) + (s << 1) + *a++ - '0';
+	return s;
+}
+
+static void sensitivity_set_func(struct work_struct *work)
+{
+	uint8_t wdata[1] = {0};
+	int ret;
+
+	TPD_INFO("sensitivity_set_func value:%d\n", sensitivity_level);
+
+	wdata[0] = sensitivity_table[sensitivity_level].value;
+	ret = ft5x0x_write_reg(i2c_client, 0x80, wdata[0]);
+	if(ret < 0)
+		TPD_INFO("Can not write sensitivity\n");
+
+	if (EnableWakeUp) {
+#ifdef MODIFY_SCANRATE_TO_DEFAULT_VALUE
+		/* Modify scan rate to default value */
+		wdata[0] = 40;
+		ret = ft5x0x_write_reg(i2c_client, 0x89, wdata[0]);
+		if(ret < 0)
+			TPD_INFO("Can not write scan rate\n");
+#endif
+	}
+
+	return;
+}
+
+static void sensitivity_func(long unsigned unused)
+{
+	TPD_INFO("sensitivity_func \n");
+
+	queue_work(sensitivity_wq, sensitivity_work);
+
+	return;
+}
+
+static ssize_t firmware_show(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char * buf)
+{
+	unsigned char reg_version = 0;
+	i2c_smbus_read_i2c_block_data(i2c_client, FW_ID_ADDR, 1, &reg_version);
+	return sprintf(buf, "FT0-%x0-13032500\n", reg_version);
+}
+
+static ssize_t wakeup_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char * buf, size_t n)
+{
+	int symbol = -1;
+	int ret;
+
+	symbol = myatoi(buf);
+	if (EnableWakeUp != symbol) {
+		EnableWakeUp = symbol;
+		/* Modify wake up mode:
+			0: disable
+			1: only 2 fingers
+			2: only 5 fingers
+			3: 2 or 5 fingers*/
+		ret = ft5x0x_write_reg(i2c_client, 0xac, EnableWakeUp);
+		if(ret < 0)
+			TPD_INFO("Can not write wake up mode\n");
+	}
+
+	TPD_INFO("wakeup_store value:%d\n", EnableWakeUp);
+
+	return n;
+}
+
+static ssize_t wakeup_show(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char * buf)
+{
+	return sprintf(buf, "%d\n", EnableWakeUp);
+}
+
+static ssize_t sensitivity_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char * buf, size_t n)
+{
+	uint8_t wdata[1] = {0};
+	int symbol = -1;
+	int ret;
+
+	symbol = myatoi(buf);
+	sensitivity_level = symbol;
+	TPD_INFO("sensitive_store value:%d\n", symbol);
+
+	wdata[0] = sensitivity_table[symbol].value;
+
+	ret = ft5x0x_write_reg(i2c_client, 0x80, wdata[0]);
+	if(ret < 0)
+		TPD_INFO("Can not write sensitivity\n");
+
+	return n;
+}
+
+static ssize_t sensitivity_show(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char * buf)
+{
+	uint8_t rdata[1] = {0};
+	int i, symbol = -1;
+
+	if (!i2c_smbus_read_i2c_block_data(i2c_client, 0x80, 1, rdata)) {
+		goto i2c_err;
+	}
+
+	for (i = 0; i < TOUCH_SENSITIVITY_SYMBOL_COUNT; i++) {
+		if (sensitivity_table[i].value == rdata[0]) {
+			symbol = sensitivity_table[i].symbol;
+			break;
+		}
+	}
+
+i2c_err:
+	if (symbol == -1) {
+		TPD_INFO("touch sensitivity default value\n");
+		symbol = TOUCH_SENSITIVITY_SYMBOL_DEFAULT;
+	}
+
+	return sprintf(buf, "%d\n", symbol);
+}
+
+static struct kobj_attribute firmware_attr = { \
+	.attr = { \
+	.name = __stringify(firmware), \
+	.mode = 0644, \
+	}, \
+	.show = firmware_show, \
+};
+
+static struct kobj_attribute wakeup_attr = { \
+	.attr = { \
+	.name = __stringify(wakeup), \
+	.mode = 0644, \
+	}, \
+	.show = wakeup_show, \
+	.store = wakeup_store, \
+};
+
+static struct kobj_attribute sensitivity_attr = { \
+	.attr = { \
+	.name = __stringify(sensitivity), \
+	.mode = 0644, \
+	}, \
+	.show = sensitivity_show, \
+	.store = sensitivity_store, \
+};
+
+static struct attribute * g[] = {
+	&sensitivity_attr.attr,
+	&wakeup_attr.attr,
+	NULL,
+};
+
+static struct attribute * g_info[] = {
+	&firmware_attr.attr,
+	NULL,
+};
+
+static struct attribute_group attr_group = {
+	.attrs = g,
+};
+
+static struct attribute_group attr_group_info = {
+	.attrs = g_info,
+};
 
 static  void tpd_down(int x, int y, int p) {
 
@@ -199,7 +924,7 @@ static  void tpd_down(int x, int y, int p) {
 	 TPD_DOWN_DEBUG_TRACK(x,y);
  }
  
- static  int tpd_up(int x, int y,int p) {
+ static void tpd_up(int x, int y,int p) {
 	 //input_report_abs(tpd->dev, ABS_PRESSURE, 0);
 		 input_report_key(tpd->dev, BTN_TOUCH, 0);
 		 //input_report_abs(tpd->dev, ABS_MT_TOUCH_MAJOR, 0);
@@ -213,18 +938,14 @@ static  void tpd_down(int x, int y, int p) {
 static int tpd_touchinfo(struct touch_info *cinfo, struct touch_info *pinfo)
 {
 	int i = 0;
-	char data[32] = {0};
-
+	char *data = gpDMABuf_va;
 	u16 high_byte,low_byte;
 
 	p_point_num = point_num;
         memcpy(pinfo, cinfo, sizeof(struct touch_info));
         memset(cinfo, 0, sizeof(struct touch_info));
 
-	i2c_smbus_read_i2c_block_data(i2c_client, 0x00, 8, &(data[0]));
-	i2c_smbus_read_i2c_block_data(i2c_client, 0x08, 8, &(data[8]));
-	i2c_smbus_read_i2c_block_data(i2c_client, 0x10, 8, &(data[16]));
-	i2c_smbus_read_i2c_block_data(i2c_client, 0x18, 8, &(data[24]));
+	fts_dma_i2c_read(i2c_client, 0x00, 64, gpDMABuf_pa);
 	//TPD_DEBUG("FW version=%x]\n",data[24]);
 
 	//TPD_DEBUG("received raw data from touch panel as following:\n");
@@ -233,7 +954,7 @@ static int tpd_touchinfo(struct touch_info *cinfo, struct touch_info *pinfo)
 	//TPD_DEBUG("[data[15]=%x,data[16]= %x ,data[17]=%x ,data[18]=%x]\n",data[15],data[16],data[17],data[18]);
 
 	/* Device Mode[2:0] == 0 :Normal operating Mode*/
-	if(data[0] & 0x70 != 0) return false; 
+	if((data[0] & 0x70) != 0) return false; 
 
 	/*get the number of the touch points*/
 	point_num= data[2] & 0x0f;
@@ -295,7 +1016,7 @@ static int tpd_touchinfo(struct touch_info *cinfo, struct touch_info *pinfo)
 	}
 #endif
 
-#if !defined(TP_CFG_FOR_E1910_SMT) && !defined(ROTATION_FOR_E1910_CQ)
+#if 0/*!defined(TP_CFG_FOR_E1910_SMT) && !defined(ROTATION_FOR_E1910_CQ)*/
 	if(MTK_LCM_PHYSICAL_ROTATION == 270 || MTK_LCM_PHYSICAL_ROTATION == 90)
 	{
 		for(i = 0; i < point_num; i++)
@@ -338,7 +1059,7 @@ static int touch_event_handler(void *unused)
  
 	 do
 	 {
-		mt65xx_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM); 
+		mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM); 
 		set_current_state(TASK_INTERRUPTIBLE); 
 		wait_event_interruptible(waiter,tpd_flag!=0);
 		 
@@ -410,7 +1131,7 @@ static int touch_event_handler(void *unused)
 	return 0;
 }
  
-static int tpd_detect (struct i2c_client *client, int kind, struct i2c_board_info *info) 
+static int tpd_detect (struct i2c_client *client, struct i2c_board_info *info) 
 {
 	TPD_DEBUG("tpd_detect\n");
 	strcpy(info->type, TPD_DEVICE);	
@@ -421,21 +1142,58 @@ static void tpd_eint_interrupt_handler(void)
 {
 	TPD_DEBUG("TPD interrupt has been triggered\n");
 	tpd_flag = 1;
+	mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
 	wake_up_interruptible(&waiter);
 }
 
-static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static void tpd_gpio_config(void)
+{
+
+	mt_set_gpio_pull_enable(GPIO_CTP_RST_PIN, GPIO_PULL_ENABLE);
+	mt_set_gpio_pull_select(GPIO_CTP_RST_PIN, GPIO_PULL_UP);
+	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
+	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
+	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);
+
+	mt_set_gpio_mode(GPIO_CTP_EINT_PIN, GPIO_CTP_EINT_PIN_M_EINT);
+	mt_set_gpio_dir(GPIO_CTP_EINT_PIN, GPIO_DIR_IN);
+	mt_set_gpio_pull_enable(GPIO_CTP_EINT_PIN, GPIO_PULL_ENABLE);
+	mt_set_gpio_pull_select(GPIO_CTP_EINT_PIN, GPIO_PULL_UP);
+
+	msleep(50);
+}
+
+static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {	 
 	int retval = TPD_OK;
 	char data;
-	i2c_client = client;
-	int i;
+	/* int i; */
+	struct fts_info *ts;
+	int err = 0;
 
+	i2c_client = client;
 	TPD_INFO("tpd_probe\n");
 
+	tpd_gpio_config();
+
 	#ifdef TPD_CLOSE_POWER_IN_SLEEP	 
+
+#ifdef TPD_POWER_SOURCE_CUSTOM
+	hwPowerOn(TPD_POWER_SOURCE_CUSTOM, VOL_2800, "TP");
+#else
+	hwPowerOn(TPD_POWER_SOURCE, VOL_3300, "TP");
+#endif
+#ifdef TPD_POWER_SOURCE_1800
+	hwPowerOn(TPD_POWER_SOURCE_1800, VOL_1800, "TP");
+#endif
+	msleep(100);
+	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
+	mdelay(200);
+
+#if 0
 	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
 	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
+	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
 	TPD_INFO("TPD_CLOSE_POWER_IN_SLEEP\n");
         for(i = 0; i < 2; i++) /*Do Power on again to avoid tp bug*/
 	{
@@ -446,7 +1204,7 @@ static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_devic
 #endif
 #ifdef TPD_POWER_SOURCE_1800
     		hwPowerDown(TPD_POWER_SOURCE_1800,  "TP");
-#endif  	
+#endif
 		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);
 		mdelay(10);
 		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
@@ -462,7 +1220,7 @@ static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_devic
 
 		msleep(100);
 	}
-
+#endif
 	#else
 #if 1 
 #ifdef TPD_POWER_SOURCE_CUSTOM
@@ -472,7 +1230,7 @@ static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_devic
 #endif
 #ifdef TPD_POWER_SOURCE_1800
 	hwPowerDown(TPD_POWER_SOURCE_1800,	"TP");
-#endif  
+#endif
 
 	TPD_INFO("tpd power on!\n");
 #ifdef TPD_POWER_SOURCE_CUSTOM
@@ -495,12 +1253,6 @@ static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_devic
 	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
 	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
 	#endif
-
-	mt_set_gpio_mode(GPIO_CTP_EINT_PIN, GPIO_CTP_EINT_PIN_M_EINT);
-	mt_set_gpio_dir(GPIO_CTP_EINT_PIN, GPIO_DIR_IN);
-	mt_set_gpio_pull_enable(GPIO_CTP_EINT_PIN, GPIO_PULL_ENABLE);
-	mt_set_gpio_pull_select(GPIO_CTP_EINT_PIN, GPIO_PULL_UP);
-	msleep(50);
 	
 	TPD_INFO("addr:0x%02x",i2c_client->addr);
 
@@ -526,6 +1278,35 @@ i2c_transfer_sucess:
 #endif
 	tpd_load_status = 1;
 
+	touchdebug_kobj = kobject_create_and_add("Touch", NULL);
+	if (touchdebug_kobj == NULL)
+		TPD_INFO("%s: subsystem_register failed\n", __func__);
+
+	if (sysfs_create_group(touchdebug_kobj, &attr_group))
+		TPD_INFO("%s:sysfs_create_group failed\n", __func__);
+
+	touchdebug_kobj_info = kobject_create_and_add("dev-info_touch", NULL);
+	if (touchdebug_kobj_info == NULL)
+		TPD_INFO("%s: subsystem_register failed\n", __func__);
+
+	if (sysfs_create_group(touchdebug_kobj_info, &attr_group_info))
+		TPD_INFO("%s:sysfs_create_group failed\n", __func__);
+
+	sensitivity_work = kzalloc(sizeof(typeof(*sensitivity_work)), GFP_KERNEL);
+	if (!sensitivity_work) {
+		TPD_INFO("create work queue error, line: %d\n", __LINE__);
+		return -1;
+	}
+	INIT_WORK(sensitivity_work, sensitivity_set_func);
+
+	sensitivity_wq = create_singlethread_workqueue("sensitivity_wq");
+	if (!sensitivity_wq) {
+		kfree(sensitivity_work);
+		TPD_INFO("create thread error, line: %d\n", __LINE__);
+		return -1;
+	}
+	setup_timer(&sensitivity_write_timer, sensitivity_func, 0);
+
 	thread = kthread_run(touch_event_handler, 0, TPD_DEVICE);
 	if (IS_ERR(thread))
 	{ 
@@ -533,11 +1314,25 @@ i2c_transfer_sucess:
 		TPD_DMESG(TPD_DEVICE " failed to create kernel thread: %d\n", retval);
 	}
 
-	mt65xx_eint_set_sens(CUST_EINT_TOUCH_PANEL_NUM, CUST_EINT_TOUCH_PANEL_SENSITIVE);
-	mt65xx_eint_set_hw_debounce(CUST_EINT_TOUCH_PANEL_NUM, CUST_EINT_TOUCH_PANEL_DEBOUNCE_CN);
-	mt65xx_eint_registration(CUST_EINT_TOUCH_PANEL_NUM, CUST_EINT_TOUCH_PANEL_DEBOUNCE_EN, CUST_EINT_TOUCH_PANEL_POLARITY, tpd_eint_interrupt_handler, 1); 
-	mt65xx_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
+	//mt_eint_set_sens(CUST_EINT_TOUCH_PANEL_NUM, CUST_EINT_TOUCH_PANEL_SENSITIVE);
+	
+	mt_eint_set_hw_debounce(CUST_EINT_TOUCH_PANEL_NUM, CUST_EINT_TOUCH_PANEL_DEBOUNCE_CN);
+	mt_eint_registration(CUST_EINT_TOUCH_PANEL_NUM, CUST_EINT_TOUCH_PANEL_TYPE, tpd_eint_interrupt_handler, 1); 
+	mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
 	msleep(50);
+
+	ts = kzalloc (sizeof(struct fts_info), GFP_KERNEL);
+	if (!ts)
+		return err;
+
+	ts->client = client;
+	i2c_set_clientdata(client, ts);
+
+	err = fts_i2cdev_init(ts);
+	if(err<0)
+		TPD_DMESG("[i2c-8][Fail]\n");
+	else
+		TPD_DMESG("[i2c-8][Success]\n");
 
 #ifdef SYSFS_DEBUG
 	ft5x0x_create_sysfs(i2c_client);
@@ -550,11 +1345,13 @@ i2c_transfer_sucess:
 	fts_ctpm_auto_upgrade(i2c_client);
 #endif
 	TPD_DMESG("Touch Panel Device Probe %s\n", (retval < TPD_OK) ? "FAIL" : "PASS");
+	TPD_DMESG("[i2c-8] i2c_client->timing:%d\n", i2c_client->timing);
 	return 0;
 }
 
-static int __devexit tpd_remove(struct i2c_client *client)
+static int tpd_remove(struct i2c_client *client)
 {
+	struct fts_info *ts = i2c_get_clientdata(client);
 	#ifdef FTS_APK_DEBUG
 	ft5x0x_release_apk_debug_channel();
 	#endif
@@ -563,6 +1360,14 @@ static int __devexit tpd_remove(struct i2c_client *client)
 	#endif
 	TPD_INFO("TPD removed\n");
 
+	del_timer_sync(&sensitivity_write_timer);
+	cancel_work_sync(sensitivity_work);
+	destroy_workqueue(sensitivity_wq);
+	kfree(sensitivity_work);
+
+	fts_i2cdev_exit();
+	kfree(ts);
+
 	return 0;
 }
  
@@ -570,6 +1375,11 @@ static int __devexit tpd_remove(struct i2c_client *client)
 static int tpd_local_init(void)
 {
 	TPD_DMESG("Focaltech FT5x06 I2C Touchscreen Driver (Built %s @ %s)\n", __DATE__, __TIME__);
+	
+	gpDMABuf_va = (u8 *)dma_alloc_coherent(NULL, 64, &gpDMABuf_pa, GFP_KERNEL);
+	if(!gpDMABuf_va){
+        DBG("[Error] Allocate DMA I2C Buffer failed!\n");
+	}
 
 	boot_mode = get_boot_mode();
 	if(boot_mode==3) boot_mode = NORMAL_BOOT;
@@ -597,6 +1407,9 @@ static int tpd_local_init(void)
     }
 #endif
 
+
+	input_set_abs_params(tpd->dev, ABS_MT_TRACKING_ID, 0, FINGER_NUM_MAX-1, 0, 0);//for linux3.8
+
 	TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);  
 	tpd_type_cap = 1;
 
@@ -609,7 +1422,7 @@ void ctp_thread_wakeup(UINT16 i)
 {
 	//printk("**** ctp_thread_wakeup****\n" );
 	GPT_NUM  gpt_num = GPT6;	
-	mt65xx_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);  
+	mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);  
 	GPT_Stop(gpt_num); 
 }
 
@@ -642,48 +1455,31 @@ void CTP_Thread_XGPTConfig(void)
 }
 #endif
 
-static int tpd_resume(struct i2c_client *client)
+static void tpd_resume(struct early_suspend *h)
 {
-	int retval = TPD_OK;
+	/* int retval = TPD_OK; */
 	char data = 0;
-	int retry_num = 0,ret = 0;
+	int ret = 0;/* retry_num = 0, */
 
 	TPD_INFO("TPD wake up\n");
 
+	if (!EnableWakeUp) {
 #ifdef TPD_GPT_TIMER_RESUME
-	mt65xx_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);  	
-	
-	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
-	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
-	
-	msleep(10);
-#ifdef TPD_POWER_SOURCE_CUSTOM
-	hwPowerDown(TPD_POWER_SOURCE_CUSTOM,  "TP");
-#else
-	hwPowerDown(TPD_POWER_SOURCE,	"TP");
-#endif
-#ifdef TPD_POWER_SOURCE_1800
-	hwPowerDown(TPD_POWER_SOURCE_1800,	"TP");
-#endif  
-#ifdef TPD_POWER_SOURCE_CUSTOM
-	hwPowerOn(TPD_POWER_SOURCE_CUSTOM, VOL_2800, "TP");
-#else
-	hwPowerOn(TPD_POWER_SOURCE, VOL_2800, "TP");
-#endif
-#ifdef TPD_POWER_SOURCE_1800
-	hwPowerOn(TPD_POWER_SOURCE_1800, VOL_1800, "TP");
-#endif  
-	// Run GPT timer
-	CTP_Thread_XGPTConfig();
-#else
-	#ifdef TPD_CLOSE_POWER_IN_SLEEP	
-	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
-	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
-	
-	do{
+		mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
+
+		mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
+		mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
+		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
+
 		msleep(10);
+#ifdef TPD_POWER_SOURCE_CUSTOM
+		hwPowerDown(TPD_POWER_SOURCE_CUSTOM,  "TP");
+#else
+		hwPowerDown(TPD_POWER_SOURCE,	"TP");
+#endif
+#ifdef TPD_POWER_SOURCE_1800
+		hwPowerDown(TPD_POWER_SOURCE_1800,	"TP");
+#endif
 #ifdef TPD_POWER_SOURCE_CUSTOM
 		hwPowerOn(TPD_POWER_SOURCE_CUSTOM, VOL_2800, "TP");
 #else
@@ -692,33 +1488,93 @@ static int tpd_resume(struct i2c_client *client)
 #ifdef TPD_POWER_SOURCE_1800
 		hwPowerOn(TPD_POWER_SOURCE_1800, VOL_1800, "TP");
 #endif  
+		// Run GPT timer
+		CTP_Thread_XGPTConfig();
+#else
+	#ifdef TPD_CLOSE_POWER_IN_SLEEP
+		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);
+		mdelay(1);
+#ifdef TPD_POWER_SOURCE_CUSTOM
+		hwPowerOn(TPD_POWER_SOURCE_CUSTOM, VOL_2800, "TP");
+#else
+		hwPowerOn(TPD_POWER_SOURCE, VOL_2800, "TP");
+#endif
+#ifdef TPD_POWER_SOURCE_1800
+		hwPowerOn(TPD_POWER_SOURCE_1800, VOL_1800, "TP");
+#endif
 		msleep(300);
+		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);
+		msleep(2);
+		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
+		msleep(200);
+#if 0
+		mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
+		mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
+		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
+
+		do{
+			msleep(10);
+#ifdef TPD_POWER_SOURCE_CUSTOM
+			hwPowerOn(TPD_POWER_SOURCE_CUSTOM, VOL_2800, "TP");
+#else
+			hwPowerOn(TPD_POWER_SOURCE, VOL_2800, "TP");
+#endif
+#ifdef TPD_POWER_SOURCE_1800
+			hwPowerOn(TPD_POWER_SOURCE_1800, VOL_1800, "TP");
+#endif
+			msleep(300);
+
+			if((ret = i2c_smbus_read_i2c_block_data(i2c_client, FW_ID_ADDR, 1, &data))< 0)
+			{
+				TPD_DEBUG("i2c transf error before reset :ret=%d,retry_num == %d\n",ret,retry_num);
+
+#ifdef TPD_POWER_SOURCE_CUSTOM
+				hwPowerDown(TPD_POWER_SOURCE_CUSTOM,  "TP");
+#else
+				hwPowerDown(TPD_POWER_SOURCE,	"TP");
+#endif
+#ifdef TPD_POWER_SOURCE_1800
+				hwPowerDown(TPD_POWER_SOURCE_1800,	"TP");
+#endif
+			}
+			else
+			{
+				TPD_DEBUG("i2c transfer success after reset :ret=%d,retry_num == %d\n",ret,retry_num);
+				break;
+			}
+			retry_num++;
+		}while(retry_num < 10);
 
 		if((ret = i2c_smbus_read_i2c_block_data(i2c_client, FW_ID_ADDR, 1, &data))< 0)
 		{
 			TPD_DEBUG("i2c transf error before reset :ret=%d,retry_num == %d\n",ret,retry_num);
 
-#ifdef TPD_POWER_SOURCE_CUSTOM
-			hwPowerDown(TPD_POWER_SOURCE_CUSTOM,  "TP");
-#else
-			hwPowerDown(TPD_POWER_SOURCE,	"TP");
-#endif
-#ifdef TPD_POWER_SOURCE_1800
-			hwPowerDown(TPD_POWER_SOURCE_1800,	"TP");
-#endif  
-		}	
-		else
-		{
-			TPD_DEBUG("i2c transfer success after reset :ret=%d,retry_num == %d\n",ret,retry_num);
-			break;
+			mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
+			mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
+			mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
+			msleep(100);
+
+			mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
+			mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
+			mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);
+			msleep(50);
+			mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
+			mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
+			mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
+			msleep(400);
+
+			if((ret = i2c_smbus_read_i2c_block_data(i2c_client, FW_ID_ADDR, 1, &data))< 0)
+			{
+				TPD_DEBUG("i2c transf error after reset :ret = %d,retry_num == %d\n",ret,retry_num);
+			}
+			else
+			{
+				TPD_DEBUG("i2c transfer success after reset :ret = %d,retry_num == %d\n",ret,retry_num);
+			}
 		}
-		retry_num++;
-	}while(retry_num < 10);
-
-	if((ret = i2c_smbus_read_i2c_block_data(i2c_client, FW_ID_ADDR, 1, &data))< 0)
-	{
-		TPD_DEBUG("i2c transf error before reset :ret=%d,retry_num == %d\n",ret,retry_num);
-
+		TPD_DEBUG("retry_num == %d\n",retry_num);
+#endif
+#else
 		mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
 		mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
 		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
@@ -726,73 +1582,64 @@ static int tpd_resume(struct i2c_client *client)
 
 		mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
 		mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
-		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);  
+		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);
 		msleep(50);  
 		mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
 		mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
 		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
-		msleep(400); 
-
-		if((ret = i2c_smbus_read_i2c_block_data(i2c_client, FW_ID_ADDR, 1, &data))< 0)
-		{
-			TPD_DEBUG("i2c transf error after reset :ret = %d,retry_num == %d\n",ret,retry_num);
-		}
-		else
-		{
-			TPD_DEBUG("i2c transfer success after reset :ret = %d,retry_num == %d\n",ret,retry_num);
-		}
-	}
-	TPD_DEBUG("retry_num == %d\n",retry_num);
-
-	#else
-	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
-	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
-	msleep(100);
-        
-	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
-	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);  
-	msleep(50);  
-	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
-	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
-	msleep(400);  
-	#endif
-	mt65xx_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);  
+		msleep(400);
 #endif
-	return retval;
+		mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
+#endif
+	} else {
+		data = 0;
+		ret = ft5x0x_write_reg(i2c_client, 0xab, data);
+		if(ret < 0)
+			TPD_INFO("Resume can not write 0xAB\n");
+	}
+
+	mod_timer(&sensitivity_write_timer,
+		jiffies + msecs_to_jiffies(TOUCH_RESUME_INTERVAL));
+
+	/* return retval; */
 }
  
-static int tpd_suspend(struct i2c_client *client, pm_message_t message)
+static void tpd_suspend(struct early_suspend *h)
 {
-	int retval = TPD_OK;
+	/* int retval = TPD_OK; */
 	static char data = 0x3;
+	int ret;
 
 	TPD_INFO("TPD enter sleep\n");
-	mt65xx_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
-	#ifdef TPD_CLOSE_POWER_IN_SLEEP	
-	#ifdef TPD_POWER_SOURCE_CUSTOM
-    	hwPowerDown(TPD_POWER_SOURCE_CUSTOM,  "TP");
-	#else
-    	hwPowerDown(TPD_POWER_SOURCE,  "TP");
-	#endif
-	#ifdef TPD_POWER_SOURCE_1800
-    	hwPowerDown(TPD_POWER_SOURCE_1800,  "TP");
-	#endif  
 
-	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
-	mt_set_gpio_dir(GPIO_CTP_RST_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);  
+	if (!EnableWakeUp) {
+		mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
+	#ifdef TPD_CLOSE_POWER_IN_SLEEP
+		mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ZERO);
+		mdelay(1);
+#ifdef TPD_POWER_SOURCE_CUSTOM
+		hwPowerDown(TPD_POWER_SOURCE_CUSTOM,  "TP");
+#else
+		hwPowerDown(TPD_POWER_SOURCE,  "TP");
+#endif
+#ifdef TPD_POWER_SOURCE_1800
+		hwPowerDown(TPD_POWER_SOURCE_1800,  "TP");
+#endif
 	#else
-	i2c_smbus_write_i2c_block_data(i2c_client, 0xA5, 1, &data);  //TP enter sleep mode
-	/*
-	mt_set_gpio_mode(GPIO_CTP_EN_PIN, GPIO_CTP_EN_PIN_M_GPIO);
-	mt_set_gpio_dir(GPIO_CTP_EN_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_CTP_EN_PIN, GPIO_OUT_ZERO);
-        */
+		ft5x0x_write_reg(i2c_client, 0xA5, data);	//TP enter sleep mode
+		/*
+		mt_set_gpio_mode(GPIO_CTP_EN_PIN, GPIO_CTP_EN_PIN_M_GPIO);
+		mt_set_gpio_dir(GPIO_CTP_EN_PIN, GPIO_DIR_OUT);
+		mt_set_gpio_out(GPIO_CTP_EN_PIN, GPIO_OUT_ZERO);
+		*/
 	#endif
-	return retval;
+	} else {
+		data = 1;
+		ret = ft5x0x_write_reg(i2c_client, 0xab, data);
+		if(ret < 0)
+			TPD_INFO("Suspend can not write 0xAB\n");
+	}
+	/* return retval; */
 } 
 
 
@@ -811,7 +1658,7 @@ static struct tpd_driver_t tpd_device_driver = {
 /* called when loaded into kernel */
 static int __init tpd_driver_init(void) {
 	TPD_DEBUG("MediaTek FT5x06 touch panel driver init\n");
-	i2c_register_board_info(0, &i2c_tpd, 1);
+	i2c_register_board_info(TPD_I2C_NUMBER, &i2c_tpd, 1);
 	if(tpd_driver_add(&tpd_device_driver) < 0)
 		TPD_DMESG("add FT5x06 driver failed\n");
 

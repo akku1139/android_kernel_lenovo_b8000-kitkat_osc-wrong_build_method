@@ -33,7 +33,6 @@ struct Upgrade_Info {
 	u16 delay_earse_flash; /*delay of earse flash*/
 };
 
-
 int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 			  u32 dw_lenth);
 
@@ -49,7 +48,21 @@ static struct mutex g_device_mutex;
 #define FT5X0X_REG_THGROUP	0x80
 
 static u8 *gpDMABuf_va = NULL;
-static u32 gpDMABuf_pa = NULL;
+static u32 gpDMABuf_pa = 0;
+
+void delay_qt_ms(unsigned long  w_ms)
+{
+	unsigned long i;
+	unsigned long j;
+
+	for (i = 0; i < w_ms; i++)
+	{
+		for (j = 0; j < 1000; j++)
+		{
+			 udelay(1);
+		}
+	}
+}
 
 int ft5x0x_i2c_Read(struct i2c_client *client, char *writebuf,
 		    int writelen, char *readbuf, int readlen)
@@ -102,7 +115,7 @@ int ft5x0x_dma_i2c_Write(struct i2c_client *client, u32 writebuf, int writelen)
 		 .ext_flag = (client->ext_flag | I2C_ENEXT_FLAG | I2C_DMA_FLAG),
 		 .flags = 0,
 		 .len = writelen,
-		 .buf = writebuf,
+		 .buf = (u8 *)writebuf,
 		 },
 	};
 
@@ -160,24 +173,25 @@ int fts_ctpm_auto_clb(struct i2c_client *client)
 
 	ft5x0x_write_reg(client, 0, FTS_FACTORYMODE_VALUE);
 	/*make sure already enter factory mode */
-	msleep(100);
+	delay_qt_ms(100);
 	/*write command to start calibration */
 	ft5x0x_write_reg(client, 2, 0x4);
-	msleep(300);
+	delay_qt_ms(300);
 	for (i = 0; i < 100; i++) {
 		ft5x0x_read_reg(client, 0, &uc_temp);
 		/*return to normal mode, calibration finish */
 		if (0x0 == ((uc_temp & 0x70) >> 4))
 			break;
 	}
+	delay_qt_ms(200);
 
 	//msleep(200);
 	/*calibration OK */
 	msleep(300);
 	ft5x0x_write_reg(client, 0, FTS_FACTORYMODE_VALUE);	/*goto factory mode for store */
-	msleep(100);	/*make sure already enter factory mode */
+	delay_qt_ms(100);	/*make sure already enter factory mode */
 	ft5x0x_write_reg(client, 2, 0x5);	/*store CLB result */
-	msleep(300);
+	delay_qt_ms(300);
 	ft5x0x_write_reg(client, 0, FTS_WORKMODE_VALUE);	/*return to normal mode */
 	msleep(300);
 
@@ -258,11 +272,11 @@ int fts_ctpm_update_project_setting(struct i2c_client *client)
 	*write 0xaa to register 0xfc
 	*/
 	ft5x0x_write_reg(client, 0xfc, 0xaa);
-	msleep(50);
+	delay_qt_ms(50);
 
 	/*write 0x55 to register 0xfc */
 	ft5x0x_write_reg(client, 0xfc, 0x55);
-	msleep(30);
+	delay_qt_ms(30);
 
 	/*********Step 2:Enter upgrade mode *****/
 	auc_i2c_write_buf[0] = 0x55;
@@ -281,7 +295,7 @@ int fts_ctpm_update_project_setting(struct i2c_client *client)
 
 	ft5x0x_i2c_Read(client, auc_i2c_write_buf, 4, reg_val, 2);
 
-	if (reg_val[0] == 0x79 && reg_val[1] == 0x3)
+	if (reg_val[0] == 0x79 && reg_val[1] == 0x6)
 		dev_dbg(&client->dev, "[FTS] Step 3: CTPM ID,ID1 = 0x%x,ID2 = 0x%x\n",
 			 reg_val[0], reg_val[1]);
 	else
@@ -306,7 +320,7 @@ int fts_ctpm_update_project_setting(struct i2c_client *client)
 	 /*--------- Step 4:erase project setting --------------*/
 	auc_i2c_write_buf[0] = 0x63;
 	ft5x0x_i2c_Write(client, auc_i2c_write_buf, 1);
-	msleep(100);
+	delay_qt_ms(100);
 
 	/*----------  Set new settings ---------------*/
 	buf[0] = uc_i2c_addr;
@@ -326,7 +340,7 @@ int fts_ctpm_update_project_setting(struct i2c_client *client)
 		packet_buf[6 + i] = buf[i];
 
 	ft5x0x_i2c_Write(client, packet_buf, FTS_SETTING_BUF_LEN + 6);
-	msleep(100);
+	delay_qt_ms(100);
 
 	/********* reset the new FW***********************/
 	auc_i2c_write_buf[0] = 0x07;
@@ -410,25 +424,12 @@ static void fts_get_upgrade_info(struct Upgrade_Info *upgrade_info)
 		break;
 	}
 }
-void delay_qt_ms(unsigned long  w_ms)
-{
-	unsigned long i;
-	unsigned long j;
-
-	for (i = 0; i < w_ms; i++)
-	{
-		for (j = 0; j < 1000; j++)
-		{
-			 udelay(1);
-		}
-	}
-}
 
 int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 			  u32 dw_lenth)
 {
 	u8 reg_val[2] = {0};
-	u32 i = 0;
+	u32 i = 0, j_do;
 	u32 packet_number;
 	u32 j;
 	u32 temp;
@@ -448,11 +449,12 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 	for (i = 0; i < FTS_UPGRADE_LOOP; i++) {
 		/*********Step 1:Reset  CTPM *****/
 		/*write 0xaa to register 0xfc */
+		printk("[FT5606] [Step 1:Reset  CTPM]\n");
 		if (DEVICE_IC_TYPE == IC_FT6208)
 			ft5x0x_write_reg(client, 0xbc, FT_UPGRADE_AA);
 		else
 			ft5x0x_write_reg(client, 0xfc, FT_UPGRADE_AA);
-		msleep(upgradeinfo.delay_aa);
+		delay_qt_ms(50);
 
 		/*write 0x55 to register 0xfc */
 		if (DEVICE_IC_TYPE == IC_FT6208)
@@ -460,19 +462,22 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 		else
 			ft5x0x_write_reg(client, 0xfc, FT_UPGRADE_55);
 
-		msleep(upgradeinfo.delay_55);
+		delay_qt_ms(30);
 		/*********Step 2:Enter upgrade mode *****/
+		printk("[FT5606] [Step 2:Enter upgrade mode]\n");
 		auc_i2c_write_buf[0] = FT_UPGRADE_55;
 		auc_i2c_write_buf[1] = FT_UPGRADE_AA;
+
+		j_do = 0;
 		do {
-			i++;
+			j_do++;
 			i_ret = ft5x0x_i2c_Write(client, auc_i2c_write_buf, 2);
-			msleep(5);
-		} while (i_ret <= 0 && i < 5);
+			delay_qt_ms(5);
+		} while (i_ret <= 0 && j_do < 5);
 
 
 		/*********Step 3:check READ-ID***********************/
-		msleep(upgradeinfo.delay_readid);
+		printk("[FT5606] [Step 3:check READ-ID]\n");
 		auc_i2c_write_buf[0] = 0x90;
 		auc_i2c_write_buf[1] = auc_i2c_write_buf[2] = auc_i2c_write_buf[3] =
 			0x00;
@@ -499,16 +504,18 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 
 
 	/*Step 4:erase app and panel paramenter area*/
+	printk("[FT5606] [Step 4:erase app and panel paramenter area]\n");
 	DBG("Step 4:erase app and panel paramenter area\n");
 	auc_i2c_write_buf[0] = 0x61;
 	ft5x0x_i2c_Write(client, auc_i2c_write_buf, 1);	/*erase app area */
-	msleep(upgradeinfo.delay_earse_flash);
+	delay_qt_ms(1500);
 	/*erase panel parameter area */
 	auc_i2c_write_buf[0] = 0x63;
 	ft5x0x_i2c_Write(client, auc_i2c_write_buf, 1);
-	msleep(100);
+	delay_qt_ms(100);
 
 	/*********Step 5:write firmware(FW) to ctpm flash*********/
+	printk("[FT5606] [Step 5:write firmware(FW) to ctpm flash]\n");
 	bt_ecc = 0;
 	DBG("Step 5:write firmware(FW) to ctpm flash\n");
 
@@ -535,7 +542,7 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 		}
 		//ft5x0x_i2c_Write(client, packet_buf, FTS_PACKET_LENGTH + 6);
 		ft5x0x_dma_i2c_Write(client,gpDMABuf_pa , FTS_PACKET_LENGTH + 6);
-		msleep(FTS_PACKET_LENGTH / 6 + 1);
+		delay_qt_ms(30);
 		//DBG("write bytes:0x%04x\n", (j+1) * FTS_PACKET_LENGTH);
 		//delay_qt_ms(FTS_PACKET_LENGTH / 6 + 1);
 	}
@@ -557,7 +564,7 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 		}
 		//ft5x0x_i2c_Write(client, packet_buf, temp + 6);
 		ft5x0x_dma_i2c_Write(client,gpDMABuf_pa , temp + 6);
-		msleep(20);
+		delay_qt_ms(30);
 	}
 
 
@@ -577,12 +584,13 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 
 		//ft5x0x_i2c_Write(client, packet_buf, 7);
 		ft5x0x_dma_i2c_Write(client,gpDMABuf_pa , 7);
-		msleep(20);
+		delay_qt_ms(30);
 	}
 
 
 	/*********Step 6: read out checksum***********************/
 	/*send the opration head */
+	printk("[FT5606] [Step 6: read out checksum]\n");
 	DBG("Step 6: read out checksum\n");
 	auc_i2c_write_buf[0] = 0xcc;
 	ft5x0x_i2c_Read(client, auc_i2c_write_buf, 1, reg_val, 1);
@@ -593,12 +601,13 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 		if(gpDMABuf_va){
 			dma_free_coherent(NULL, 256, gpDMABuf_va, gpDMABuf_pa);
 			gpDMABuf_va = NULL;
-			gpDMABuf_pa = NULL;
+			gpDMABuf_pa = 0;
 		}
 		return -EIO;
 	}
 
 	/*********Step 7: reset the new FW***********************/
+	printk("[FT5606] [Step 7: reset the new FW]\n");
 	DBG("Step 7: reset the new FW\n");
 	auc_i2c_write_buf[0] = 0x07;
 	ft5x0x_i2c_Write(client, auc_i2c_write_buf, 1);
@@ -607,7 +616,7 @@ int fts_ctpm_fw_upgrade(struct i2c_client *client, u8 *pbt_buf,
 	if(gpDMABuf_va){
 		dma_free_coherent(NULL, 256, gpDMABuf_va, gpDMABuf_pa);
 		gpDMABuf_va = NULL;
-		gpDMABuf_pa = NULL;
+		gpDMABuf_pa = 0;
 	}
 	return 0;
 }
@@ -1236,10 +1245,10 @@ static int ft5x0x_debug_read( char *page, char **start,
 	off_t off, int count, int *eof, void *data )
 {
 	struct i2c_client *client = (struct i2c_client *)ft5x0x_proc_entry->data;
-	int ret = 0, err = 0;
-	u8 tx = 0, rx = 0;
-	int i, j;
-	unsigned char buf[PAGE_SIZE];
+	int ret = 0;/* , err = 0; */
+	/* u8 tx = 0, rx = 0;
+	int i, j; */
+	unsigned char buf[1024];
 	int num_read_chars = 0;
 	int readlen = 0;
 	u8 regvalue = 0x00, regaddr = 0x00;

@@ -3,7 +3,7 @@
 
 /*
 
-#include <linux/autoconf.h>
+#include <generated/autoconf.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -38,7 +38,7 @@
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 
-#include <linux/autoconf.h>
+#include <generated/autoconf.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -163,6 +163,7 @@
 
 #define REG_RW_PLLGP_ANACFG0              0x34c
 #define PLLGP_ANACFG0_PLL1_RESERVED             1
+#define PLLGP_ANACFG0_PLL1_NFIPLL_EN      (1U<<1)
 #define PLLGP_ANACFG0_PLL1_EN             (1U<<31)
 
 
@@ -173,6 +174,7 @@
 #define REG_RW_DCXO_ANACFG9              0x388
 #define DCXO_ANACFG9_BUS_CK_SOURCE_SEL_SHIFT   9
 #define DCXO_ANACFG9_BUS_CK_SOURCE_SEL_MASK    0x7
+#define DCX0_ANACFG9_VALUE               0x801025  
 
 
 /* DCXO */

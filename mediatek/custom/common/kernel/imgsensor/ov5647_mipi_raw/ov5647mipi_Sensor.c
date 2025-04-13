@@ -1155,7 +1155,7 @@ static void OV5647MIPI_Sensor_Init(void)
 	OV5647MIPI_write_cmos_sensor(0x4000, 0x09);		//add							  
 	//OV5647MIPI_write_cmos_sensor(0x0010, 0x01);	    //add
 
-	OV5647MIPI_write_cmos_sensor(0x3013,0x00);//liurui modfiy
+	OV5647MIPI_write_cmos_sensor(0x3013,0x00);//
 	OV5647MIPI_write_cmos_sensor(0x4005,0x18);//gain triger
 	OV5647MIPI_write_cmos_sensor(0x4050,0x37);//blc max
 	OV5647MIPI_write_cmos_sensor(0x4051,0x8f);//blc level trigger
@@ -1198,7 +1198,8 @@ static void OV5647MIPI_Sensor_1080P(void)
 	OV5647MIPI_write_cmos_sensor(0x3a0d,0x04);
 	OV5647MIPI_write_cmos_sensor(0x3a0e,0x03);       
 	OV5647MIPI_write_cmos_sensor(0x4004, 0x04);
-	OV5647MIPI_write_cmos_sensor(0x4005,0x18);//gain triger
+	//OV5647MIPI_write_cmos_sensor(0x4005,0x18);//gain triger
+	OV5647MIPI_write_cmos_sensor(0x4005,0x1a);//gain triger
 	OV5647MIPI_write_cmos_sensor(0x4837,0x19);             
 	OV5647MIPI_write_cmos_sensor(0x0100,0x01);
 
@@ -1422,7 +1423,7 @@ UINT32 OV5647MIPIGetSensorID(UINT32 *sensorID)
 #ifdef OV5647MIPI_DRIVER_TRACE
 	SENSORDB("OV5647MIPIOpen, sensor_id:%x \n",*sensorID);
 #endif		
-	if (*sensorID != OV5647MIPI_SENSOR_ID) {		
+	if (*sensorID != OV5647MIPI_SENSOR_ID) {
 		*sensorID = 0xFFFFFFFF;
 		return ERROR_SENSOR_CONNECT_FAIL;
 	}

@@ -103,7 +103,7 @@ static int hscdtd006_resume(struct i2c_client *client);
 
 //static struct platform_driver alps_sensor_driver;
 
-static int hscdtd006_init_flag =0; // 0<==>OK -1 <==> fail
+static int hscdtd006_init_flag =-1; // 0<==>OK -1 <==> fail
 
 static int  hscdtd006_local_init(void);
 static int  hscdtd006_remove(void);
@@ -1251,7 +1251,7 @@ int hscdtd006_operate(void* self, uint32_t command, void* buff_in, int size_in,
 				msensor_data->values[0] = msensor_data->values[0] * CONVERT_M;
 				msensor_data->values[1] = msensor_data->values[1] * CONVERT_M;
 				msensor_data->values[2] = msensor_data->values[2] * CONVERT_M;
-				msensor_data->value_divide = 1000;
+				msensor_data->value_divide = 1;//1000
 				/*
 				switch (status)
 		        {
